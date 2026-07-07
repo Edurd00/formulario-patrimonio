@@ -1,13 +1,43 @@
 const formulario = document.getElementById("formulario");
 const regiao = document.getElementById("regiao");
 const estadual = document.getElementById("estadual");
+const cepInput = document.getElementById("cep");
 const endereco = document.getElementById("endereco");
 const dirigente = document.getElementById("dirigente");
 const telefoneInput = document.getElementById("telefone");
 const totvs = document.getElementById("totvs");
 const erroTotvs = document.getElementById("erro-totvs");
 
+const URL = "https://script.google.com/macros/s/AKfycbxkNg6kiPzv1YdfkenT6n-XX5kFx1ts0R18Uu-xAY8I9_v4f7fqPKb-B3GmBb09jAOTqg/exec";
 const codigosExistentes = [];
+
+async function carregarCodigosExistentes() {
+  try {
+    const resposta = await fetch(`${URL}?acao=listar_igrejas&_t=${new Date().getTime()}`);
+    const textoResposta = await resposta.text();
+    let resultado;
+    try {
+      resultado = JSON.parse(textoResposta);
+    } catch (parseError) {
+      console.error("Resposta do servidor que causou falha no carregamento inicial:", textoResposta);
+      return;
+    }
+    if (resultado.sucesso && resultado.dados) {
+      const igrejas = resultado.dados;
+      if (Array.isArray(igrejas)) {
+        igrejas.forEach(igreja => {
+          if (igreja.totvs) {
+            codigosExistentes.push(String(igreja.totvs).trim());
+          }
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao carregar codigos existentes:", error);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", carregarCodigosExistentes);
 
 if (sessionStorage.getItem("cadastroEnviado") === "true") {
   sessionStorage.removeItem("cadastroEnviado");
@@ -192,12 +222,41 @@ totvs.addEventListener("blur", function () {
 telefoneInput.addEventListener("input", function() {
   let r = this.value.replace(/\D/g, "");
   if (r.length > 11) r = r.substring(0, 11);
-  if (r.length > 6) {
+  if (r.length > 10) {
     this.value = `(${r.substring(0, 2)}) ${r.substring(2, 7)}-${r.substring(7, 11)}`;
+  } else if (r.length > 6) {
+    this.value = `(${r.substring(0, 2)}) ${r.substring(2, 6)}-${r.substring(6, 10)}`;
   } else if (r.length > 2) {
     this.value = `(${r.substring(0, 2)}) ${r.substring(2)}`;
   } else if (r.length > 0) {
     this.value = `(${r}`;
+  }
+});
+
+cepInput.addEventListener("input", function() {
+  let r = this.value.replace(/\D/g, "");
+  if (r.length > 8) r = r.substring(0, 8);
+  if (r.length > 5) {
+    this.value = `${r.substring(0, 5)}-${r.substring(5, 8)}`;
+  } else {
+    this.value = r;
+  }
+});
+
+cepInput.addEventListener("blur", async function() {
+  const cep = this.value.replace(/\D/g, "");
+  if (cep.length !== 8) return;
+
+  try {
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+
+    if (!data.erro) {
+      endereco.value = `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`;
+      endereco.focus();
+    }
+  } catch (error) {
+    console.error("Erro ao buscar CEP:", error);
   }
 });
 

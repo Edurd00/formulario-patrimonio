@@ -227,19 +227,19 @@ h1 {
 
 label {
   display: block;
-  font-size: 14px;
-  color: #4a5568;
-  font-weight: 500;
+  font-size: 15px;
+  color: #1e293b;
+  font-weight: 600;
   margin-bottom: 8px;
   margin-top: 14px;
 }
 
 input, select, textarea {
   width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-size: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid #cbd5e1;
+  font-size: 16px;
   font-family: 'Poppins', sans-serif;
   background-color: #f8fafc;
   outline: none;
@@ -383,6 +383,18 @@ button:hover {
   display: inline-block;
 }
 
+.card-recolhido {
+    padding-bottom: 15px !important;
+    opacity: 0.8;
+}
+
+.card-recolhido label,
+.card-recolhido .campo-extra,
+.card-recolhido .descricao-campo,
+.card-recolhido .btn-remover-card {
+    display: none !important;
+}
+
 /* ==========================================================================
    6. CARD DE RESUMO, BOTÃO TOPO E MENSACHENS DE STATUS
    ========================================================================== */
@@ -444,7 +456,7 @@ button:hover {
 }
 
 .container-relatorio {
-  max-width: 760px;
+  max-width: 1400px;
 }
 
 .painel-relatorio-admin {
@@ -522,3 +534,226 @@ button:hover {
   text-decoration: underline;
 }
 
+/* Estilos para a Tabela de Relatórios */
+.tabela-container {
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
+.tabela-dinamica {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.tabela-dinamica th, .tabela-dinamica td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #eef2f5;
+}
+
+.tabela-dinamica th {
+    background-color: #f8fafc;
+    color: #24348c;
+    font-weight: 600;
+}
+
+.tabela-dinamica tr:hover {
+    background-color: #f9fbfd;
+}
+
+.btn-tabela {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    width: auto;
+}
+
+.carregando {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+}
+
+/* ==========================================================================
+   8. COMPONENTES EXTRAS UI/UX ACESSÍVEIS (IDAS E VOLTAS MOBILE)
+   ========================================================================== */
+
+/* Grupo de botões grandes para Sim/Não (Toggle Group) */
+.toggle-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.btn-toggle {
+  flex: 1;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 2px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #475569;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.btn-toggle.btn-sim:hover {
+  border-color: #1e3a2f;
+  background-color: #f0fdf4;
+  color: #1e3a2f;
+}
+
+.btn-toggle.btn-sim.ativo {
+  background-color: #2e7d32 !important;
+  color: white !important;
+  border-color: #2e7d32 !important;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25);
+}
+
+.btn-toggle.btn-nao:hover {
+  border-color: #7f1d1d;
+  background-color: #fef2f2;
+  color: #7f1d1d;
+}
+
+.btn-toggle.btn-nao.ativo {
+  background-color: #d32f2f !important;
+  color: white !important;
+  border-color: #d32f2f !important;
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.25);
+}
+
+/* Container do Seletor Numérico de Quantidade (Stepper) */
+.stepper-container {
+  display: flex;
+  align-items: center;
+  border: 2px solid #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #f8fafc;
+  width: 160px;
+  height: 52px;
+  margin-top: 8px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.btn-stepper {
+  width: 52px;
+  height: 52px;
+  background: none;
+  border: none;
+  color: #24348c;
+  font-size: 22px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  padding: 0;
+  z-index: 1;
+}
+
+.btn-stepper:hover {
+  background-color: #e2e8f0;
+}
+
+.stepper-container input[type="number"] {
+  flex: 1;
+  text-align: center;
+  border: none !important;
+  background: none !important;
+  font-size: 18px;
+  font-weight: 700;
+  color: #24348c;
+  padding: 0 !important;
+  margin: 0;
+  pointer-events: none; /* Evita que o teclado do mobile pule na tela */
+}
+
+/* Chrome, Safari, Edge, Opera: Esconder setas nativas */
+.stepper-container input::-webkit-outer-spin-button,
+.stepper-container input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox: Esconder setas nativas */
+.stepper-container input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Animação e destaque de erro nos cartões */
+.card-erro-destaque {
+  border: 3px solid #d32f2f !important;
+  box-shadow: 0 0 15px rgba(211, 47, 47, 0.3) !important;
+  background-color: #fff5f5 !important;
+  transform: scale(1.015);
+  transition: all 0.3s ease;
+}
+
+/* Badges de estado de conservação no relatório administrativo */
+.status-estado {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  display: inline-block;
+}
+.status-estado.estado-bom {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+.status-estado.estado-otimo {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+.status-estado.estado-regular {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+.status-estado.estado-ruim {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* Adaptação móvel para as abas do wizard (visual de círculos horizontais) */
+@media (max-width: 768px) {
+  .wizard-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-bottom: 25px !important;
+  }
+
+  .wizard-step {
+    flex: 1 !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    aspect-ratio: 1 / 1 !important;
+    font-size: 0 !important;
+    justify-content: center !important;
+  }
+
+  .wizard-step span {
+    margin: 0 !important;
+    font-size: 14px !important;
+    width: 28px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  .wizard-step .step-title {
+    display: none !important;
+  }
+}

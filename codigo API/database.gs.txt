@@ -4,10 +4,14 @@ function inicializarBanco() {
       return;
     }
 
-    const planilha = abrirPlanilhaDestino(destino);
+    try {
+      const planilha = abrirPlanilhaDestino(destino);
 
-    garantirCabecalho(obterOuCriarAba(planilha, destino.base), CONFIG.CABECALHOS.BASE);
-    garantirCabecalho(obterOuCriarAba(planilha, destino.patrimonios), CONFIG.CABECALHOS.PATRIMONIOS);
+      garantirCabecalho(obterOuCriarAba(planilha, destino.base), CONFIG.CABECALHOS.BASE);
+      garantirCabecalho(obterOuCriarAba(planilha, destino.patrimonios), CONFIG.CABECALHOS.PATRIMONIOS);
+    } catch (e) {
+      Logger.log("Erro ao inicializar planilha do destino " + destino.chave + ": " + e);
+    }
   });
 }
 
@@ -234,23 +238,27 @@ function buscarLinhaBasePorTotvs(totvs) {
       continue;
     }
 
-    const planilha = abrirPlanilhaDestino(destino);
-    const aba = planilha.getSheetByName(destino.base);
+    try {
+      const planilha = abrirPlanilhaDestino(destino);
+      const aba = planilha.getSheetByName(destino.base);
 
-    if (!aba || aba.getLastRow() < 2) {
-      continue;
-    }
+      if (!aba || aba.getLastRow() < 2) {
+        continue;
+      }
 
-    const range = aba.getRange(2, 1, aba.getLastRow() - 1, 1);
-    const resultado = range.createTextFinder(chave).matchEntireCell(true).findNext();
+      const range = aba.getRange(2, 1, aba.getLastRow() - 1, 1);
+      const resultado = range.createTextFinder(chave).matchEntireCell(true).findNext();
 
-    if (resultado) {
-      return {
-        planilha: planilha,
-        aba: aba,
-        linha: resultado.getRow(),
-        destino: destino
-      };
+      if (resultado) {
+        return {
+          planilha: planilha,
+          aba: aba,
+          linha: resultado.getRow(),
+          destino: destino
+        };
+      }
+    } catch (e) {
+      Logger.log("Erro ao buscar TOTVS na planilha do destino " + destino.chave + ": " + e);
     }
   }
 
@@ -289,28 +297,32 @@ function buscarPatrimoniosPorTotvs(totvs, destinoEncontrado) {
       return;
     }
 
-    const planilha = abrirPlanilhaDestino(destino);
-    const aba = planilha.getSheetByName(destino.patrimonios);
+    try {
+      const planilha = abrirPlanilhaDestino(destino);
+      const aba = planilha.getSheetByName(destino.patrimonios);
 
-    if (!aba || aba.getLastRow() < 2) {
-      return;
+      if (!aba || aba.getLastRow() < 2) {
+        return;
+      }
+
+      const valores = aba.getRange(2, 1, aba.getLastRow() - 1, CONFIG.CABECALHOS.PATRIMONIOS.length).getValues();
+      encontrados = encontrados.concat(valores
+        .filter(function(linha) {
+          return normalizarTexto(linha[0]) === chave;
+        })
+        .map(function(linha) {
+          return {
+            totvs: linha[0],
+            patrimonio: linha[1],
+            possui: linha[2],
+            quantidade: linha[3],
+            conservacao: linha[4],
+            observacao: linha[5] || "-"
+          };
+        }));
+    } catch (e) {
+      Logger.log("Erro ao buscar patrimonios na planilha do destino " + destino.chave + ": " + e);
     }
-
-    const valores = aba.getRange(2, 1, aba.getLastRow() - 1, CONFIG.CABECALHOS.PATRIMONIOS.length).getValues();
-    encontrados = encontrados.concat(valores
-      .filter(function(linha) {
-        return normalizarTexto(linha[0]) === chave;
-      })
-      .map(function(linha) {
-        return {
-          totvs: linha[0],
-          patrimonio: linha[1],
-          possui: linha[2],
-          quantidade: linha[3],
-          conservacao: linha[4],
-          observacao: linha[5] || "-"
-        };
-      }));
   });
 
   return encontrados;
@@ -334,6 +346,52 @@ function formatarTabelasBanco() {
       formatarTabelaBanco(abaPatrimonios, CONFIG.CABECALHOS.PATRIMONIOS.length);
     }
   });
+}
+
+function listarIgrejasBaseGeral() {
+  const destinos = obterDestinosConfigurados();
+  let todasIgrejas = [];
+
+  destinos.forEach(function(destino) {
+    if (!destinoTemPlanilhaConfigurada(destino)) return;
+
+    try {
+      const planilha = abrirPlanilhaDestino(destino);
+      const aba = planilha.getSheetByName(destino.base);
+
+      if (!aba || aba.getLastRow() < 2) return;
+
+      const valores = aba.getRange(2, 1, aba.getLastRow() - 1, 6).getValues();
+
+      const igrejas = valores.map(function(linha) {
+        return {
+          totvs: linha[0],
+          regiao: linha[1],
+          estadual: linha[2],
+          dirigente: linha[3],
+          telefone: linha[4],
+          endereco: linha[5]
+        };
+      });
+
+      todasIgrejas = todasIgrejas.concat(igrejas);
+    } catch (e) {
+      Logger.log("Erro ao listar igrejas do destino " + destino.chave + ": " + e);
+    }
+  });
+
+  // Remover duplicatas por TOTVS se houver
+  const uniqueIgrejas = [];
+  const totvsVistos = new Set();
+
+  todasIgrejas.forEach(function(igreja) {
+    if (!totvsVistos.has(igreja.totvs)) {
+      totvsVistos.add(igreja.totvs);
+      uniqueIgrejas.push(igreja);
+    }
+  });
+
+  return uniqueIgrejas;
 }
 
 function formatarTabelaBanco(aba, colunas) {

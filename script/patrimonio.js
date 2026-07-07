@@ -1,4 +1,4 @@
-const URL = "https://script.google.com/macros/s/AKfycbwkVzOrEX1QiEcQg0aHG_X9DS0hxcaga5cj0sCbm7huetqVvcLZyvyqrmcco95uAdLkAg/exec";
+const URL = "https://script.google.com/macros/s/AKfycbxUK5XcWW_BiUu5EBOMCuqaKgbIo7TSMhz4cH-lPo0i0D6G9Zwrd8v4ZpSLNQmmp4jYtw/exec";
 
 const msgStatus = document.getElementById("mensagem-status");
 const botaoSubmit = document.getElementById("btn-enviar");
@@ -127,14 +127,20 @@ function criarCardItem(item, etapa, extra = false) {
     <h2>${titulo} <span class="check-icon">✓</span></h2>
     ${botaoRemover}
     <label>${extra ? "O item foi adicionado ao cadastro?" : perguntaItem(item.nome)}</label>
-    <select id="${item.id}Possui" name="${item.id}Possui">
-      <option value="">Selecione</option>
-      <option value="Sim"${extra ? " selected" : ""}>Sim</option>
-      <option value="Nao">Nao</option>
-    </select>
+    
+    <div class="toggle-group" id="${item.id}ToggleGroup">
+      <button type="button" class="btn-toggle btn-nao" data-value="Nao" data-target="${item.id}Possui">Não</button>
+      <button type="button" class="btn-toggle btn-sim" data-value="Sim" data-target="${item.id}Possui">Sim</button>
+    </div>
+    <input type="hidden" id="${item.id}Possui" name="${item.id}Possui" value="">
+
     <div class="campo-extra" id="${item.id}Campos">
       <label>Quantidade</label>
-      <input type="number" id="${item.id}Qtd" name="${item.id}Qtd" min="1" placeholder="Quantidade">
+      <div class="stepper-container">
+        <button type="button" class="btn-stepper btn-minus" data-target="${item.id}Qtd" aria-label="Diminuir quantidade">-</button>
+        <input type="number" id="${item.id}Qtd" name="${item.id}Qtd" min="1" value="1" placeholder="Qtd" readonly>
+        <button type="button" class="btn-stepper btn-plus" data-target="${item.id}Qtd" aria-label="Aumentar quantidade">+</button>
+      </div>
       <label>Estado de conservacao</label>
       <select id="${item.id}Estado" name="${item.id}Estado">${opcoesEstadoHtml()}</select>
       <label>Observacao opcional</label>
@@ -169,7 +175,7 @@ function montarWizard() {
     navButton.type = "button";
     navButton.className = `wizard-step${etapa === 1 ? " ativo" : ""}`;
     navButton.dataset.etapa = etapa;
-    navButton.innerHTML = `<span>${etapa}</span>${categoria.titulo}`;
+    navButton.innerHTML = `<span>${etapa}</span><span class="step-title">${categoria.titulo}</span>`;
     wizardNav.appendChild(navButton);
 
     const section = document.createElement("section");
@@ -223,23 +229,43 @@ function controlarCampos(cardInfo) {
     const nomeOk = !nome || nome.value.trim() !== "";
     if (select.value === "Nao") {
       card.classList.add("card-concluido");
+      card.classList.remove("card-erro-destaque");
     } else if (select.value === "Sim" && qtd.value.trim() !== "" && estado.value !== "" && nomeOk) {
       card.classList.add("card-concluido");
+      card.classList.remove("card-erro-destaque");
+      qtd.classList.remove("erro-input");
+      estado.classList.remove("erro-input");
+      if (nome) nome.classList.remove("erro-input");
     } else {
       card.classList.remove("card-concluido");
     }
   }
 
+  function sincronizarBotoesToggle() {
+    const value = select.value;
+    const parent = document.getElementById(`${cardInfo.id}ToggleGroup`);
+    if (parent) {
+      parent.querySelectorAll(".btn-toggle").forEach(btn => {
+        if (btn.dataset.value === value) {
+          btn.classList.add("ativo");
+        } else {
+          btn.classList.remove("ativo");
+        }
+      });
+    }
+  }
+
   function atualizarObrigatoriedade() {
     const ativo = Number(card.dataset.etapa) === etapaAtual;
-    select.required = ativo;
+    select.required = false; // Hidden inputs never required natively
     if (nome) nome.required = ativo;
 
     if (select.value === "Sim") {
       campos.style.display = "block";
       qtd.required = ativo;
       estado.required = ativo;
-    } else {
+      card.classList.remove("card-recolhido");
+    } else if (select.value === "Nao") {
       campos.style.display = "none";
       qtd.required = false;
       estado.required = false;
@@ -247,16 +273,24 @@ function controlarCampos(cardInfo) {
       estado.value = "";
       const obs = document.getElementById(cardInfo.obsId);
       if (obs) obs.value = "";
+      card.classList.add("card-recolhido");
+    } else {
+      campos.style.display = "none";
+      qtd.required = false;
+      estado.required = false;
+      card.classList.remove("card-recolhido");
     }
 
     avaliarConclusaoCard();
   }
 
+  select.addEventListener("change", sincronizarBotoesToggle);
   select.addEventListener("change", atualizarObrigatoriedade);
   qtd.addEventListener("input", avaliarConclusaoCard);
   estado.addEventListener("change", avaliarConclusaoCard);
   if (nome) nome.addEventListener("input", avaliarConclusaoCard);
 
+  sincronizarBotoesToggle();
   atualizarObrigatoriedade();
 }
 
@@ -290,15 +324,62 @@ function removerItemExtra(id) {
 
 function validarEtapa(etapa) {
   const containerEtapa = document.getElementById(`categoria-${etapa}`);
-  const camposInvalidos = containerEtapa.querySelectorAll("select:invalid, input:invalid");
+  
+  // Buscar todos os cards que pertencem a esta etapa e que estão visíveis no DOM
+  const cardsNestaEtapa = cards.filter(card => card.etapa === etapa && document.getElementById(card.cardId));
 
-  if (camposInvalidos.length > 0) {
-    exibirMensagem("Por favor, responda todos os cards da categoria atual antes de avancar.", "erro");
-    camposInvalidos[0].focus();
-    return false;
+  for (let cardInfo of cardsNestaEtapa) {
+    const possuiInput = document.getElementById(cardInfo.selectId);
+    const cardElement = document.getElementById(cardInfo.cardId);
+
+    if (!possuiInput || !cardElement) continue;
+
+    // Se o usuário não clicou nem em Sim nem em Não
+    if (possuiInput.value === "") {
+      exibirMensagem("Por favor, responda todos os cards da categoria atual (Sim ou Não) antes de avançar.", "erro");
+      cardElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      
+      // Destacar visualmente o card com erro temporário
+      cardElement.classList.add("card-erro-destaque");
+      setTimeout(() => cardElement.classList.remove("card-erro-destaque"), 1500);
+      return false;
+    }
+
+    if (possuiInput.value === "Sim") {
+      const qtdInput = document.getElementById(cardInfo.qtdId);
+      const estadoSelect = document.getElementById(cardInfo.estadoId);
+      const nomeInput = cardInfo.nomeId ? document.getElementById(cardInfo.nomeId) : null;
+
+      if (nomeInput && nomeInput.value.trim() === "") {
+        exibirMensagem("Por favor, informe o nome do item adicional.", "erro");
+        nomeInput.focus();
+        nomeInput.classList.add("erro-input");
+        return false;
+      }
+
+      if (!qtdInput || qtdInput.value.trim() === "" || Number(qtdInput.value) <= 0) {
+        exibirMensagem("Por favor, informe a quantidade correta para os itens ativados.", "erro");
+        if (qtdInput) {
+          qtdInput.focus();
+          qtdInput.classList.add("erro-input");
+        }
+        return false;
+      }
+
+      if (!estadoSelect || estadoSelect.value === "") {
+        exibirMensagem("Por favor, selecione o estado de conservação do patrimônio.", "erro");
+        if (estadoSelect) {
+          estadoSelect.focus();
+          estadoSelect.classList.add("erro-input");
+        }
+        return false;
+      }
+    }
   }
 
-  if (msgStatus.className.includes("erro")) msgStatus.style.display = "none";
+  if (msgStatus && msgStatus.className.includes("erro")) {
+    msgStatus.style.display = "none";
+  }
   return true;
 }
 
@@ -336,20 +417,28 @@ function controlarObrigatoriedadeCard(cardInfo) {
   const nome = cardInfo.nomeId ? document.getElementById(cardInfo.nomeId) : null;
   const campos = document.getElementById(cardInfo.camposId);
   const ativo = cardInfo.etapa === etapaAtual;
+  const card = document.getElementById(cardInfo.cardId);
 
-  if (!select || !qtd || !estado || !campos) return;
+  if (!select || !qtd || !estado || !campos || !card) return;
 
-  select.required = ativo;
+  select.required = false; // Desabilitamos obrigatório nativo para input oculto
   if (nome) nome.required = ativo;
 
   if (select.value === "Sim") {
     campos.style.display = "block";
     qtd.required = ativo;
     estado.required = ativo;
+    card.classList.remove("card-recolhido");
+  } else if (select.value === "Nao") {
+    campos.style.display = "none";
+    qtd.required = false;
+    estado.required = false;
+    card.classList.add("card-recolhido");
   } else {
     campos.style.display = "none";
     qtd.required = false;
     estado.required = false;
+    card.classList.remove("card-recolhido");
   }
 }
 
@@ -490,8 +579,16 @@ document.querySelectorAll(".wizard-step").forEach(botao => {
   botao.addEventListener("click", function () {
     const destino = Number(this.dataset.etapa);
 
-    if (destino > etapaAtual && !validarEtapa(etapaAtual)) {
-      return;
+    // Validação sequencial: se o destino for maior do que a etapa atual,
+    // precisamos validar todas as etapas intermediárias
+    if (destino > etapaAtual) {
+      for (let step = etapaAtual; step < destino; step++) {
+        if (!validarEtapa(step)) {
+          etapaAtual = step;
+          atualizarWizard();
+          return;
+        }
+      }
     }
 
     etapaAtual = destino;
@@ -508,7 +605,7 @@ btnAvancarWizard.addEventListener("click", function () {
 });
 
 btnVoltarWizard.addEventListener("click", function () {
-  if (msgStatus.className.includes("erro")) msgStatus.style.display = "none";
+  if (msgStatus && msgStatus.className.includes("erro")) msgStatus.style.display = "none";
 
   if (etapaAtual === 1) {
     window.location.href = "index.html";
@@ -519,13 +616,46 @@ btnVoltarWizard.addEventListener("click", function () {
 });
 
 document.addEventListener("click", function (event) {
+  // Clique em adicionar item extra
   if (event.target.id === "btn-adicionar-item") {
     adicionarItemExtra();
     salvarRascunhoAglomerado();
   }
 
+  // Clique em remover item extra
   if (event.target.classList.contains("btn-remover-card")) {
     removerItemExtra(event.target.dataset.card);
+  }
+
+  // Clique em botão de Toggle (Sim/Não)
+  if (event.target.classList.contains("btn-toggle")) {
+    const value = event.target.dataset.value;
+    const targetId = event.target.dataset.target;
+    const hiddenInput = document.getElementById(targetId);
+    if (hiddenInput) {
+      hiddenInput.value = value;
+      hiddenInput.dispatchEvent(new Event("change"));
+      hiddenInput.dispatchEvent(new Event("input"));
+      salvarRascunhoAglomerado();
+    }
+  }
+
+  // Clique em botão de seletor numérico (Stepper: + / -)
+  if (event.target.classList.contains("btn-stepper")) {
+    const targetId = event.target.dataset.target;
+    const input = document.getElementById(targetId);
+    if (input) {
+      let val = parseInt(input.value) || 1;
+      if (event.target.classList.contains("btn-plus")) {
+        val++;
+      } else if (event.target.classList.contains("btn-minus")) {
+        val = Math.max(1, val - 1);
+      }
+      input.value = val;
+      input.dispatchEvent(new Event("input"));
+      input.dispatchEvent(new Event("change"));
+      salvarRascunhoAglomerado();
+    }
   }
 });
 

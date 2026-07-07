@@ -4,24 +4,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatórios - Patrimônios IPDA</title>
+    <title>Painel Administrativo - Patrimônios IPDA</title>
+    <meta name="description" content="Painel administrativo para visualização e geração de relatórios patrimoniais das igrejas IPDA por região.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="img/favicon.jpg" type="image/jpeg">
     <link rel="stylesheet" href="style/style.css">
+    <style>
+        /* ================================================
+           PAINEL ADMINISTRATIVO - ESTILOS ESPECÍFICOS
+        ================================================ */
+
+        /* Container mais largo para o painel */
+        .container-relatorio {
+            max-width: 1400px !important;
+            padding: 30px 40px !important;
+        }
+
+        @media (max-width: 1024px) {
+            .container-relatorio {
+                padding: 25px 20px !important;
+            }
+        }
+
+        /* ---- BARRA DE BUSCA PRINCIPAL ---- */
+        .barra-busca-principal {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            background: #f0f4ff;
+            border: 1px solid #d0d9f0;
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+
+        .barra-busca-principal input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            padding: 11px 16px;
+            border: 1.5px solid #c5cde8;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Poppins', sans-serif;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+        .barra-busca-principal input[type="text"]:focus {
+            border-color: #24348c;
+            outline: none;
+        }
+
+        .barra-busca-principal select {
+            padding: 11px 14px;
+            border: 1.5px solid #c5cde8;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Poppins', sans-serif;
+            background: #fff;
+            color: #333;
+            min-width: 180px;
+            cursor: pointer;
+        }
+
+        .barra-busca-principal select:focus {
+            border-color: #24348c;
+            outline: none;
+        }
+
+        .badge-contagem {
+            background: #24348c;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        /* ---- FILTRO SUPERIOR (para gerar relatório por região) ---- */
+        .busca-filtro-topo {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .busca-filtro-topo input {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 14px;
+            border: 1.5px solid #c5cde8;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .busca-filtro-topo select {
+            padding: 10px 14px;
+            border: 1.5px solid #c5cde8;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Poppins', sans-serif;
+            min-width: 160px;
+        }
+
+        /* ---- TABELA MAIS LEGÍVEL ---- */
+        .tabela-dinamica {
+            min-width: 700px;
+        }
+
+        .tabela-dinamica th {
+            background-color: #24348c;
+            color: #fff !important;
+            font-weight: 600;
+            padding: 14px 12px;
+        }
+
+        .tabela-dinamica td {
+            padding: 13px 12px;
+            vertical-align: middle;
+        }
+
+        .tabela-dinamica tbody tr:nth-child(even) {
+            background-color: #f7f9fe;
+        }
+
+        .tabela-dinamica tbody tr:hover {
+            background-color: #eef2ff !important;
+            transition: background-color 0.2s;
+        }
+
+        /* ---- IMPRESSÃO / PDF ---- */
+        @media print {
+            .no-print { display: none !important; }
+            .print-header { display: flex !important; align-items: center; gap: 20px; margin-bottom: 24px; border-bottom: 3px solid #24348c; padding-bottom: 16px; }
+            .print-header img { width: 100px; }
+            .print-header div { flex: 1; }
+            .container { width: 100% !important; max-width: 100% !important; padding: 15px !important; box-shadow: none !important; border-radius: 0 !important; }
+            .card { border: 1px solid #ddd !important; box-shadow: none !important; page-break-inside: avoid; }
+            .tabela-dinamica th { background-color: #24348c !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .tabela-dinamica td, .tabela-dinamica th { font-size: 12px !important; padding: 8px 10px !important; }
+            .tabela-container { overflow: visible !important; }
+            #painel-geracao { display: none !important; }
+            footer { display: none !important; }
+        }
+
+        .print-header { display: none; }
+
+        /* ---- RESUMO GRID NO DETALHE ---- */
+        .resumo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 
 <body>
     <div class="container container-relatorio">
-        <img src="img/logo.png" alt="Logo IPDA" class="logo">
 
-        <h1>Relatórios Patrimoniais</h1>
-        <p class="subtitulo">Geração sob demanda de relatório corporativo por código TOTVS</p>
+        <!-- Cabeçalho apenas para impressão -->
+        <div class="print-header">
+            <img src="img/logo.png" alt="Logo IPDA">
+            <div>
+                <h1 style="margin:0; font-size:22px; color:#24348c;">Relatório Patrimonial</h1>
+                <p style="margin:4px 0 0; color:#555; font-size:13px;">Igreja Pentecostal Deus é Amor - IPDA</p>
+                <p style="margin:2px 0 0; color:#777; font-size:12px;">Rua Alexandre Levi, 50 - Cambuci - São Paulo/SP</p>
+            </div>
+        </div>
 
-        <section class="card painel-relatorio painel-relatorio-admin">
+        <!-- Logo visível na tela -->
+        <img src="img/logo.png" alt="Logo IPDA" class="logo no-print">
+
+        <h1 class="no-print">Painel Administrativo</h1>
+        <p class="subtitulo no-print">Gerencie e visualize os patrimônios de todas as igrejas cadastradas</p>
+
+        <!-- ================================================
+             SEÇÃO: GERAR RELATÓRIO INDIVIDUAL
+        ================================================ -->
+        <section class="card no-print" id="painel-geracao">
             <h2>Gerar relatório da igreja</h2>
-            <p class="descricao-campo">Informe o código TOTVS para criar uma aba temporária limpa na planilha ou exportar o relatório completo em PDF.</p>
+            <p class="descricao-campo">Informe o código TOTVS para exportar o relatório completo em PDF ou criar uma aba temporária na planilha.</p>
 
             <label for="totvsRelatorio">Código TOTVS</label>
             <input type="text" id="totvsRelatorio" maxlength="5" placeholder="Ex: 12345" autofocus>
@@ -34,10 +203,105 @@
             <div id="mensagem-relatorio" class="mensagem-status" style="display: none;"></div>
         </section>
 
+        <!-- ================================================
+             SEÇÃO: DETALHES DE UMA IGREJA (abre ao clicar Ver Detalhes)
+        ================================================ -->
+        <section class="card" id="painel-detalhes-igreja" style="display: none; width: 100%;">
+            <div class="detalhes-header no-print"
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #24348c; padding-bottom: 10px;">
+                <h2 style="margin: 0;">Detalhes — TOTVS <span id="detalhe-totvs-titulo"></span></h2>
+                <button type="button" id="btn-fechar-detalhes"
+                    style="width: auto; padding: 8px 16px; background-color: #e53e3e; font-size: 14px; border-radius: 8px;">
+                    ✕ Fechar
+                </button>
+            </div>
+
+            <div class="resumo-grid">
+                <div class="resumo-item destaque">
+                    <span>TOTVS</span>
+                    <strong id="detalhe-totvs"></strong>
+                </div>
+                <div class="resumo-item">
+                    <span>Região</span>
+                    <strong id="detalhe-regiao"></strong>
+                </div>
+                <div class="resumo-item">
+                    <span>Estadual</span>
+                    <strong id="detalhe-estadual"></strong>
+                </div>
+                <div class="resumo-item">
+                    <span>Dirigente</span>
+                    <strong id="detalhe-dirigente"></strong>
+                </div>
+                <div class="resumo-item">
+                    <span>Telefone</span>
+                    <strong id="detalhe-telefone"></strong>
+                </div>
+                <div class="resumo-item">
+                    <span>Data de Cadastro</span>
+                    <strong id="detalhe-data"></strong>
+                </div>
+            </div>
+
+            <div class="resumo-item" style="width: 100%; margin-bottom: 25px;">
+                <span style="display: block; font-size: 13px; color: #777; margin-bottom: 8px;">Endereço</span>
+                <strong id="detalhe-endereco" style="color: #24348c; font-size: 16px; line-height: 1.5;"></strong>
+            </div>
+
+            <h3 style="color: #24348c; margin-bottom: 15px; font-size: 18px; border-left: 4px solid #24348c; padding-left: 10px;">
+                Patrimônios Registrados
+            </h3>
+            <div class="tabela-container" style="margin-bottom: 20px;">
+                <table class="tabela-dinamica" id="tabela-detalhes-patrimonios">
+                    <thead>
+                        <tr>
+                            <th>Patrimônio</th>
+                            <th>Quantidade</th>
+                            <th>Estado de Conservação</th>
+                            <th>Observação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-detalhes-patrimonios-tbody">
+                        <!-- Preenchido dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="botoes relatorio-botoes no-print" style="margin-top: 25px;">
+                <button type="button" id="btn-detalhe-exportar-pdf" class="botao-secundario"
+                    style="background-color: #0f766e;">
+                    📄 Exportar PDF do Relatório
+                </button>
+            </div>
+        </section>
+
+        <!-- ================================================
+             SEÇÃO: LISTA DE IGREJAS CADASTRADAS
+        ================================================ -->
+        <section class="card">
+            <h2>Igrejas Cadastradas</h2>
+
+            <!-- Barra de busca e filtros -->
+            <div class="barra-busca-principal no-print">
+                <input type="text" id="filtro-igrejas"
+                    placeholder="🔍 Buscar por TOTVS, dirigente, região, estadual...">
+
+                <select id="filtro-regiao-igrejas">
+                    <option value="">Todas as Regiões</option>
+                    <!-- Populado via JavaScript com as regiões reais do projeto -->
+                </select>
+
+                <span class="badge-contagem" id="contagem-igrejas">0 igrejas</span>
+            </div>
+
+            <!-- Tabela dinâmica -->
+            <div id="lista-igrejas-container" class="tabela-container">
+                <p class="carregando">⏳ Carregando lista de igrejas...</p>
+            </div>
+        </section>
+
         <footer class="footer">
-            <p>
-                <a href="index.html">Voltar ao cadastro</a>
-            </p>
+            <p><a href="index.html">← Voltar ao cadastro</a></p>
             <p>Rua Alexandre Levi, 50 - Cambuci - São Paulo/SP</p>
         </footer>
     </div>

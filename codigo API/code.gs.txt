@@ -13,17 +13,41 @@ function doGet(e) {
       );
     }
 
+    if (acao === "listar_igrejas" || acao === "listarigrejas") {
+      return respostaSucesso("Lista de igrejas recuperada com sucesso.", listarIgrejasBaseGeral());
+    }
+
+    if (acao === "obter_detalhes" || acao === "obterdetalhes") {
+      const totvs = parametros.totvs || "";
+      if (!totvs) {
+        return respostaErro("Codigo TOTVS obrigatorio.");
+      }
+      const igreja = buscarIgrejaPorTotvs(totvs);
+      const patrimonios = buscarPatrimoniosPorTotvs(totvs, igreja.destino);
+      const dados = {
+        totvs: igreja.totvs,
+        regiao: igreja.regiao,
+        estadual: igreja.estadual,
+        dirigente: igreja.dirigente,
+        telefone: igreja.telefone,
+        endereco: igreja.endereco,
+        dataCadastro: formatarDataHora(igreja.dataCadastro),
+        patrimonios: patrimonios
+      };
+      return respostaSucesso("Detalhes da igreja recuperados com sucesso.", dados);
+    }
+
     if (acao === "testarroteamento" || acao === "testar_roteamento") {
       return respostaSucesso("Roteamento consultado com sucesso.", diagnosticarRoteamento(parametros.regiao, parametros.regiaoChave));
     }
 
     return respostaSucesso("Backend online.", {
       app: CONFIG.APP_NAME,
-      rotas: ["cadastrar", "gerarRelatorio", "exportarPdf"]
+      rotas: ["cadastrar", "gerarRelatorio", "exportarPdf", "obter_detalhes"]
     });
   } catch (erro) {
     registrarErro("doGet", erro);
-    return HtmlService.createHtmlOutput("Erro ao gerar relatorio: " + mensagemErro(erro));
+    return HtmlService.createHtmlOutput("Erro ao processar requisicao: " + mensagemErro(erro));
   }
 }
 
@@ -43,7 +67,27 @@ function doPost(e) {
     }
 
     if (acao === "exportarpdf" || acao === "exportar_pdf") {
-      return respostaSucesso("PDF exportado com sucesso.", exportarPdfRelatorio(payload.totvs, true));
+      return respostaSucesso("PDF exportado com sucesso.", exportarPdfRelatorio(payload.totvs));
+    }
+
+    if (acao === "obter_detalhes" || acao === "obterdetalhes") {
+      const totvs = payload.totvs || "";
+      if (!totvs) {
+        return respostaErro("Codigo TOTVS obrigatorio.");
+      }
+      const igreja = buscarIgrejaPorTotvs(totvs);
+      const patrimonios = buscarPatrimoniosPorTotvs(totvs, igreja.destino);
+      const dados = {
+        totvs: igreja.totvs,
+        regiao: igreja.regiao,
+        estadual: igreja.estadual,
+        dirigente: igreja.dirigente,
+        telefone: igreja.telefone,
+        endereco: igreja.endereco,
+        dataCadastro: formatarDataHora(igreja.dataCadastro),
+        patrimonios: patrimonios
+      };
+      return respostaSucesso("Detalhes da igreja recuperados com sucesso.", dados);
     }
 
     if (acao === "testarroteamento" || acao === "testar_roteamento") {
