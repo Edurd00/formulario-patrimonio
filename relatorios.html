@@ -169,6 +169,46 @@
             gap: 15px;
             margin-bottom: 20px;
         }
+
+        /* ---- PAGINAÇÃO ---- */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .pag-btn {
+            background-color: #fff;
+            color: #24348c;
+            border: 1.5px solid #d0d9f0;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: auto;
+        }
+
+        .pag-btn:hover:not(:disabled) {
+            background-color: #f0f4ff;
+            border-color: #24348c;
+        }
+
+        .pag-btn.ativo {
+            background-color: #24348c;
+            color: #fff;
+            border-color: #24348c;
+        }
+
+        .pag-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #f4f6f9;
+        }
     </style>
 </head>
 
@@ -318,6 +358,9 @@
             <div id="lista-igrejas-container" class="tabela-container">
                 <p class="carregando">⏳ Carregando lista de igrejas...</p>
             </div>
+
+            <!-- Container de paginação -->
+            <div id="paginacao-container" class="pagination-container no-print"></div>
         </section>
 
         <footer class="footer">

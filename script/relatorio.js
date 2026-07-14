@@ -159,6 +159,9 @@ if (btnExportarPdf) {
 const listaIgrejasContainer = document.getElementById("lista-igrejas-container");
 let todasIgrejas = [];
 let igrejasFiltradas = [];
+let paginaAtual = 1;
+const itensPorPagina = 50;
+let dadosFiltrados = [];
 
 /** Normaliza string removendo acentos e maiúsculas para comparação */
 function normalizar(str) {
@@ -281,7 +284,7 @@ function exportarParaCSV() {
   window.URL.revokeObjectURL(url);
 }
 
-/** Renderiza a tabela de igrejas (filtrada ou completa) */
+/** Renderiza a tabela de igrejas (filtrada ou completa) de forma paginada */
 function renderizarTabela(igrejas) {
   if (!listaIgrejasContainer) return;
 
@@ -295,8 +298,15 @@ function renderizarTabela(igrejas) {
       <p style="text-align:center; color:#999; padding:30px 0; font-size:15px;">
         🔍 Nenhuma igreja encontrada para os filtros aplicados.
       </p>`;
+    const pagContainer = document.getElementById("paginacao-container");
+    if (pagContainer) pagContainer.innerHTML = "";
     return;
   }
+
+  // Paginação: calcula os limites de exibição
+  const inicio = (paginaAtual - 1) * itensPorPagina;
+  const fim = inicio + itensPorPagina;
+  const dadosExibidos = igrejas.slice(inicio, fim);
 
   let html = `
     <table class="tabela-dinamica">
@@ -312,7 +322,7 @@ function renderizarTabela(igrejas) {
       <tbody>
   `;
 
-  igrejas.forEach(igreja => {
+  dadosExibidos.forEach(igreja => {
     html += `
       <tr>
         <td><strong>${igreja.totvs || '-'}</strong></td>
@@ -339,6 +349,118 @@ function renderizarTabela(igrejas) {
 
   html += '</tbody></table>';
   listaIgrejasContainer.innerHTML = html;
+
+  // Desenha os botões de paginação abaixo da tabela
+  renderizarControlesPaginacao(igrejas.length);
+}
+
+/** Desenha os botões de controle de paginação abaixo da tabela */
+function renderizarControlesPaginacao(totalItens) {
+  const pagContainer = document.getElementById("paginacao-container");
+  if (!pagContainer) return;
+
+  pagContainer.innerHTML = "";
+  const totalPaginas = Math.ceil(totalItens / itensPorPagina);
+
+  // Se houver apenas 1 página ou nenhuma, não precisa exibir os botões
+  if (totalPaginas <= 1) return;
+
+  // Botão "Anterior"
+  const btnAnterior = document.createElement("button");
+  btnAnterior.className = "pag-btn";
+  btnAnterior.innerText = "« Anterior";
+  btnAnterior.disabled = paginaAtual === 1;
+  btnAnterior.addEventListener("click", () => {
+    if (paginaAtual > 1) {
+      paginaAtual--;
+      renderizarTabela(dadosFiltrados);
+      rolarParaTabela();
+    }
+  });
+  pagContainer.appendChild(btnAnterior);
+
+  // Números das páginas (com limite inteligente para telas de celular)
+  const maxBotoesVisiveis = 5;
+  let pagInicio = Math.max(1, paginaAtual - Math.floor(maxBotoesVisiveis / 2));
+  let pagFim = Math.min(totalPaginas, pagInicio + maxBotoesVisiveis - 1);
+
+  if (pagFim - pagInicio + 1 < maxBotoesVisiveis) {
+    pagInicio = Math.max(1, pagFim - maxBotoesVisiveis + 1);
+  }
+
+  if (pagInicio > 1) {
+    const btnPrimeira = document.createElement("button");
+    btnPrimeira.className = "pag-btn";
+    btnPrimeira.innerText = "1";
+    btnPrimeira.addEventListener("click", () => {
+      paginaAtual = 1;
+      renderizarTabela(dadosFiltrados);
+      rolarParaTabela();
+    });
+    pagContainer.appendChild(btnPrimeira);
+
+    if (pagInicio > 2) {
+      const reticencias = document.createElement("span");
+      reticencias.innerText = "...";
+      reticencias.style.color = "#777";
+      reticencias.style.margin = "0 4px";
+      pagContainer.appendChild(reticencias);
+    }
+  }
+
+  for (let i = pagInicio; i <= pagFim; i++) {
+    const btnPag = document.createElement("button");
+    btnPag.className = `pag-btn ${i === paginaAtual ? "ativo" : ""}`;
+    btnPag.innerText = i;
+    btnPag.addEventListener("click", () => {
+      paginaAtual = i;
+      renderizarTabela(dadosFiltrados);
+      rolarParaTabela();
+    });
+    pagContainer.appendChild(btnPag);
+  }
+
+  if (pagFim < totalPaginas) {
+    if (pagFim < totalPaginas - 1) {
+      const reticencias = document.createElement("span");
+      reticencias.innerText = "...";
+      reticencias.style.color = "#777";
+      reticencias.style.margin = "0 4px";
+      pagContainer.appendChild(reticencias);
+    }
+
+    const btnUltima = document.createElement("button");
+    btnUltima.className = "pag-btn";
+    btnUltima.innerText = totalPaginas;
+    btnUltima.addEventListener("click", () => {
+      paginaAtual = totalPaginas;
+      renderizarTabela(dadosFiltrados);
+      rolarParaTabela();
+    });
+    pagContainer.appendChild(btnUltima);
+  }
+
+  // Botão "Próximo"
+  const btnProximo = document.createElement("button");
+  btnProximo.className = "pag-btn";
+  btnProximo.innerText = "Próximo »";
+  btnProximo.disabled = paginaAtual === totalPaginas;
+  btnProximo.addEventListener("click", () => {
+    if (paginaAtual < totalPaginas) {
+      paginaAtual++;
+      renderizarTabela(dadosFiltrados);
+      rolarParaTabela();
+    }
+  });
+  pagContainer.appendChild(btnProximo);
+}
+
+/** Faz scroll suave até o topo da tabela de igrejas */
+function rolarParaTabela() {
+  const containerTabela = document.getElementById("lista-igrejas-container");
+  if (containerTabela) {
+    containerTabela.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 /** Aplica os filtros de busca, região e estadual sobre todasIgrejas */
@@ -353,6 +475,8 @@ function aplicarFiltros() {
     (document.getElementById("filtro-estadual-igrejas") || {}).value || ""
   );
 
+  paginaAtual = 1; // Reseta para a página 1 ao filtrar
+
   const filtradas = todasIgrejas.filter(igreja => {
     const matchBusca = !termoBusca || [
       igreja.totvs, igreja.regiao, igreja.estadual, igreja.dirigente, igreja.endereco
@@ -365,8 +489,9 @@ function aplicarFiltros() {
     return matchBusca && matchRegiao && matchEstadual;
   });
 
+  dadosFiltrados = filtradas;
   igrejasFiltradas = filtradas;
-  renderizarTabela(filtradas);
+  renderizarTabela(dadosFiltrados);
 }
 
 /** Carrega as igrejas da API e inicializa os filtros */
@@ -411,7 +536,9 @@ async function listarIgrejas() {
     }
 
     todasIgrejas = igrejas;
+    dadosFiltrados = igrejas;
     igrejasFiltradas = igrejas;
+    paginaAtual = 1;
 
     if (igrejas.length === 0) {
       listaIgrejasContainer.innerHTML = `
@@ -426,7 +553,7 @@ async function listarIgrejas() {
     // Popula o filtro de regiões e de estaduais e renderiza a tabela
     popularFiltroRegioes();
     atualizarFiltroEstaduais();
-    renderizarTabela(todasIgrejas);
+    renderizarTabela(dadosFiltrados);
 
     // Ativa os listeners dos filtros
     const inputBusca = document.getElementById("filtro-igrejas");
