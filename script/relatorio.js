@@ -158,6 +158,7 @@ if (btnExportarPdf) {
 ========================================= */
 const listaIgrejasContainer = document.getElementById("lista-igrejas-container");
 let todasIgrejas = [];
+let igrejasFiltradas = [];
 
 /** Normaliza string removendo acentos e maiúsculas para comparação */
 function normalizar(str) {
@@ -179,6 +180,105 @@ function popularFiltroRegioes() {
     opt.textContent = regiao;
     selectRegiao.appendChild(opt);
   });
+}
+
+/** Atualiza o select de estaduais no filtro de igrejas com base na região selecionada */
+function atualizarFiltroEstaduais() {
+  const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+  const selectEstadual = document.getElementById("filtro-estadual-igrejas");
+  if (!selectEstadual) return;
+
+  const regiaoSelecionada = selectRegiao ? selectRegiao.value : "";
+  const valorAnterior = selectEstadual.value;
+
+  selectEstadual.innerHTML = '<option value="">Todas as Estaduais</option>';
+
+  let estaduaisParaMostrar = [];
+  if (regiaoSelecionada && REGIOES[regiaoSelecionada]) {
+    estaduaisParaMostrar = REGIOES[regiaoSelecionada];
+  } else {
+    // Se não há região selecionada, mostra todas as estaduais de todas as regiões
+    Object.keys(REGIOES).forEach(reg => {
+      estaduaisParaMostrar = estaduaisParaMostrar.concat(REGIOES[reg]);
+    });
+  }
+
+  // Remove duplicados e ordena em ordem alfabética
+  const estaduaisUnicos = [...new Set(estaduaisParaMostrar)].sort();
+
+  estaduaisUnicos.forEach(est => {
+    const opt = document.createElement("option");
+    opt.value = est;
+    opt.textContent = est;
+    selectEstadual.appendChild(opt);
+  });
+
+  // Tenta restaurar a seleção anterior se ela ainda existir na lista
+  if (valorAnterior && estaduaisUnicos.includes(valorAnterior)) {
+    selectEstadual.value = valorAnterior;
+  } else {
+    selectEstadual.value = "";
+  }
+}
+
+/** Exporta as igrejas filtradas atuais para um arquivo CSV formatado para Excel */
+function exportarParaCSV() {
+  if (igrejasFiltradas.length === 0) {
+    alert("Não há dados filtrados para exportar.");
+    return;
+  }
+
+  // Cabeçalhos das colunas
+  const colunas = ["TOTVS", "Regiao", "Estadual", "Dirigente", "Telefone", "Data Cadastro", "Endereco"];
+
+  // Linhas do CSV
+  const linhas = [];
+
+  // Adiciona os cabeçalhos
+  linhas.push(colunas.join(";"));
+
+  // Adiciona cada igreja filtrada
+  igrejasFiltradas.forEach(igreja => {
+    const dados = [
+      igreja.totvs || "",
+      igreja.regiao || "",
+      igreja.estadual || "",
+      igreja.dirigente || "",
+      igreja.telefone || "",
+      igreja.dataCadastro || "",
+      igreja.endereco || ""
+    ];
+
+    // Trata aspas duplas e quebras de linha para evitar quebrar o CSV
+    const dadosTratados = dados.map(valor => {
+      let texto = String(valor).replace(/"/g, '""');
+      if (texto.includes(";") || texto.includes("\n") || texto.includes("\r")) {
+        texto = `"${texto}"`;
+      }
+      return texto;
+    });
+
+    linhas.push(dadosTratados.join(";"));
+  });
+
+  // Une todas as linhas com quebra de linha do Windows (\r\n) para máxima compatibilidade com o Excel
+  const conteudoCSV = "\ufeff" + linhas.join("\r\n"); // \ufeff é o UTF-8 BOM
+
+  // Cria o blob e faz o download do arquivo
+  const blob = new Blob([conteudoCSV], { type: "text/csv;charset=utf-8;" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  // Nome do arquivo com timestamp para evitar substituição
+  const dataFormatada = new Date().toISOString().slice(0, 10);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `relatorio_igrejas_${dataFormatada}.csv`);
+  link.style.visibility = 'hidden';
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }
 
 /** Renderiza a tabela de igrejas (filtrada ou completa) */
@@ -241,13 +341,16 @@ function renderizarTabela(igrejas) {
   listaIgrejasContainer.innerHTML = html;
 }
 
-/** Aplica os filtros de busca e região sobre todasIgrejas */
+/** Aplica os filtros de busca, região e estadual sobre todasIgrejas */
 function aplicarFiltros() {
   const termoBusca = normalizar(
     (document.getElementById("filtro-igrejas") || {}).value || ""
   );
   const regiaoSelecionada = normalizar(
     (document.getElementById("filtro-regiao-igrejas") || {}).value || ""
+  );
+  const estadualSelecionada = normalizar(
+    (document.getElementById("filtro-estadual-igrejas") || {}).value || ""
   );
 
   const filtradas = todasIgrejas.filter(igreja => {
@@ -257,9 +360,12 @@ function aplicarFiltros() {
 
     const matchRegiao = !regiaoSelecionada || normalizar(igreja.regiao) === regiaoSelecionada;
 
-    return matchBusca && matchRegiao;
+    const matchEstadual = !estadualSelecionada || normalizar(igreja.estadual) === estadualSelecionada;
+
+    return matchBusca && matchRegiao && matchEstadual;
   });
 
+  igrejasFiltradas = filtradas;
   renderizarTabela(filtradas);
 }
 
@@ -305,6 +411,7 @@ async function listarIgrejas() {
     }
 
     todasIgrejas = igrejas;
+    igrejasFiltradas = igrejas;
 
     if (igrejas.length === 0) {
       listaIgrejasContainer.innerHTML = `
@@ -316,15 +423,28 @@ async function listarIgrejas() {
       return;
     }
 
-    // Popula o filtro de regiões e renderiza a tabela
+    // Popula o filtro de regiões e de estaduais e renderiza a tabela
     popularFiltroRegioes();
+    atualizarFiltroEstaduais();
     renderizarTabela(todasIgrejas);
 
     // Ativa os listeners dos filtros
     const inputBusca = document.getElementById("filtro-igrejas");
     const selectRegiao = document.getElementById("filtro-regiao-igrejas");
-    if (inputBusca) inputBusca.addEventListener("input", aplicarFiltros);
-    if (selectRegiao) selectRegiao.addEventListener("change", aplicarFiltros);
+    const selectEstadual = document.getElementById("filtro-estadual-igrejas");
+
+    if (inputBusca) {
+      inputBusca.addEventListener("input", aplicarFiltros);
+    }
+    if (selectRegiao) {
+      selectRegiao.addEventListener("change", () => {
+        atualizarFiltroEstaduais();
+        aplicarFiltros();
+      });
+    }
+    if (selectEstadual) {
+      selectEstadual.addEventListener("change", aplicarFiltros);
+    }
 
   } catch (erro) {
     listaIgrejasContainer.innerHTML = `
@@ -454,6 +574,22 @@ document.addEventListener("DOMContentLoaded", () => {
       const painelDetalhes = document.getElementById("painel-detalhes-igreja");
       if (painelDetalhes) painelDetalhes.style.display = "none";
     });
+  }
+
+  // Sair do painel (Logout)
+  const btnLogout = document.getElementById("btn-logout");
+  if (btnLogout) {
+    btnLogout.addEventListener("click", (e) => {
+      e.preventDefault();
+      sessionStorage.removeItem("usuarioLogado");
+      window.location.href = "login.html";
+    });
+  }
+
+  // Exportar dados para o Excel (CSV)
+  const btnExportarCsv = document.getElementById("btn-exportar-csv");
+  if (btnExportarCsv) {
+    btnExportarCsv.addEventListener("click", exportarParaCSV);
   }
 
   // Carrega lista de igrejas
