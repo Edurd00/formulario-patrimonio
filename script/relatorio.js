@@ -266,7 +266,7 @@ function exportarParaCSV() {
 
   // Cria o blob e faz o download do arquivo
   const blob = new Blob([conteudoCSV], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
+  const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
 
   // Nome do arquivo com timestamp para evitar substituição
@@ -278,6 +278,7 @@ function exportarParaCSV() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }
 
 /** Renderiza a tabela de igrejas (filtrada ou completa) */
