@@ -46,8 +46,8 @@ if (sessionStorage.getItem("cadastroEnviado") === "true") {
 const estaduais = {
   "Grande Sao Paulo - SP": [
     "Sede Mundial",
-    "Franco da Rocha - SP (T 16245)",
-    "Guarulhos - SP (T 15937)",
+    "Franco da Rocha - SP (T 16332)",
+    "Guarulhos - SP (T 16245)",
     "Itaquaquecetuba - SP (T 15937)",
     "Maua - SP (T 9289)",
     "Mogi das Cruzes - SP (T 15968)",
