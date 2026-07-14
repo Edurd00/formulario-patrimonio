@@ -158,6 +158,7 @@ if (btnExportarPdf) {
 ========================================= */
 const listaIgrejasContainer = document.getElementById("lista-igrejas-container");
 let todasIgrejas = [];
+let igrejasFiltradas = [];
 
 /** Normaliza string removendo acentos e maiúsculas para comparação */
 function normalizar(str) {
@@ -218,6 +219,65 @@ function atualizarFiltroEstaduais() {
   } else {
     selectEstadual.value = "";
   }
+}
+
+/** Exporta as igrejas filtradas atuais para um arquivo CSV formatado para Excel */
+function exportarParaCSV() {
+  if (igrejasFiltradas.length === 0) {
+    alert("Não há dados filtrados para exportar.");
+    return;
+  }
+
+  // Cabeçalhos das colunas
+  const colunas = ["TOTVS", "Regiao", "Estadual", "Dirigente", "Telefone", "Data Cadastro", "Endereco"];
+
+  // Linhas do CSV
+  const linhas = [];
+
+  // Adiciona os cabeçalhos
+  linhas.push(colunas.join(";"));
+
+  // Adiciona cada igreja filtrada
+  igrejasFiltradas.forEach(igreja => {
+    const dados = [
+      igreja.totvs || "",
+      igreja.regiao || "",
+      igreja.estadual || "",
+      igreja.dirigente || "",
+      igreja.telefone || "",
+      igreja.dataCadastro || "",
+      igreja.endereco || ""
+    ];
+
+    // Trata aspas duplas e quebras de linha para evitar quebrar o CSV
+    const dadosTratados = dados.map(valor => {
+      let texto = String(valor).replace(/"/g, '""');
+      if (texto.includes(";") || texto.includes("\n") || texto.includes("\r")) {
+        texto = `"${texto}"`;
+      }
+      return texto;
+    });
+
+    linhas.push(dadosTratados.join(";"));
+  });
+
+  // Une todas as linhas com quebra de linha do Windows (\r\n) para máxima compatibilidade com o Excel
+  const conteudoCSV = "\ufeff" + linhas.join("\r\n"); // \ufeff é o UTF-8 BOM
+
+  // Cria o blob e faz o download do arquivo
+  const blob = new Blob([conteudoCSV], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  // Nome do arquivo com timestamp para evitar substituição
+  const dataFormatada = new Date().toISOString().slice(0, 10);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `relatorio_igrejas_${dataFormatada}.csv`);
+  link.style.visibility = 'hidden';
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 /** Renderiza a tabela de igrejas (filtrada ou completa) */
@@ -304,6 +364,7 @@ function aplicarFiltros() {
     return matchBusca && matchRegiao && matchEstadual;
   });
 
+  igrejasFiltradas = filtradas;
   renderizarTabela(filtradas);
 }
 
@@ -349,6 +410,7 @@ async function listarIgrejas() {
     }
 
     todasIgrejas = igrejas;
+    igrejasFiltradas = igrejas;
 
     if (igrejas.length === 0) {
       listaIgrejasContainer.innerHTML = `
@@ -521,6 +583,12 @@ document.addEventListener("DOMContentLoaded", () => {
       sessionStorage.removeItem("usuarioLogado");
       window.location.href = "login.html";
     });
+  }
+
+  // Exportar dados para o Excel (CSV)
+  const btnExportarCsv = document.getElementById("btn-exportar-csv");
+  if (btnExportarCsv) {
+    btnExportarCsv.addEventListener("click", exportarParaCSV);
   }
 
   // Carrega lista de igrejas
