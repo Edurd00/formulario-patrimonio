@@ -172,6 +172,22 @@ function normalizar(str) {
     .trim();
 }
 
+/** Converte string de data brasileira em objeto Date do JS */
+function converterDataBr(dataStr) {
+  if (!dataStr) return null;
+  // Trata formatos com data e hora ou apenas data, limpando espaços extras
+  const apenasData = String(dataStr).trim().split(" ")[0];
+  const partes = apenasData.split("/");
+  if (partes.length !== 3) return null;
+
+  const dia = parseInt(partes[0], 10);
+  const mes = parseInt(partes[1], 10) - 1; // Mês no JS começa em 0
+  const ano = parseInt(partes[2], 10);
+
+  // Criamos o objeto de data definindo a hora para o início do dia (00:00:00) para evitar problemas de fuso horário
+  return new Date(ano, mes, dia, 0, 0, 0);
+}
+
 /** Popula o select de regiões no filtro de igrejas com todas as regiões do projeto */
 function popularFiltroRegioes() {
   const selectRegiao = document.getElementById("filtro-regiao-igrejas");
@@ -302,28 +318,31 @@ function atualizarKpis(dadosFiltrados) {
   const totalEstaduais = estaduaisUnicas.size;
 
   // Métrica 3: Cadastros Recentes (Últimos 7 dias)
-  function converterDataBr(dataStr) {
-    if (!dataStr) return null;
-    // Remove possíveis partes de hora se houver (ex: "15/07/2026 14:30" vira "15/07/2026")
-    const apenasData = dataStr.split(" ")[0];
-    const partes = apenasData.split("/");
-    if (partes.length !== 3) return null;
-
-    const dia = parseInt(partes[0], 10);
-    const mes = parseInt(partes[1], 10) - 1; // No JS, os meses começam em 0 (Janeiro = 0)
-    const ano = parseInt(partes[2], 10);
-
-    return new Date(ano, mes, dia);
-  }
-
   const hoje = new Date();
-  const limiteSeteDias = new Date(hoje.getTime() - (7 * 24 * 60 * 60 * 1000));
+  hoje.setHours(23, 59, 59, 999);
 
-  const recentes = dadosFiltrados.filter(item => {
-    const dataItem = converterDataBr(item.dataCadastro || item['Data Cadastro']);
+  const limiteSeteDias = new Date(hoje);
+  limiteSeteDias.setDate(hoje.getDate() - 7);
+  limiteSeteDias.setHours(0, 0, 0, 0);
+
+  console.log("Debug KPI - Período de busca:", limiteSeteDias.toLocaleDateString('pt-BR'), "até", hoje.toLocaleDateString('pt-BR'));
+
+  const recentes = dadosFiltrados.filter((item, index) => {
+    const dataCrua = item.dataCadastro || item['Data Cadastro'] || item.datacadastro || item['data_cadastro'] || item.data;
+
+    if (index === 0) {
+      console.log("Debug KPI - Exemplo de dado bruto recebido da planilha:", item);
+      console.log("Debug KPI - Campo de data detectado:", dataCrua);
+    }
+
+    const dataItem = converterDataBr(dataCrua);
     if (!dataItem) return false;
-    return dataItem >= limiteSeteDias && dataItem <= hoje;
+
+    const estaNoPeriodo = dataItem >= limiteSeteDias && dataItem <= hoje;
+    return estaNoPeriodo;
   });
+
+  console.log("Debug KPI - Quantidade de cadastros recentes encontrados:", recentes.length);
 
   const cadastrosRecentes = recentes.length;
 
