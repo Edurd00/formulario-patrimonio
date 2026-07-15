@@ -361,16 +361,25 @@ function listarIgrejasBaseGeral() {
 
       if (!aba || aba.getLastRow() < 2) return;
 
-      const valores = aba.getRange(2, 1, aba.getLastRow() - 1, 6).getValues();
+      const valores = aba.getRange(2, 1, aba.getLastRow() - 1, 7).getValues();
 
       const igrejas = valores.map(function(linha) {
+        let dataCad = "";
+        if (linha[6]) {
+          try {
+            dataCad = formatarDataHora(linha[6]);
+          } catch(err) {
+            dataCad = String(linha[6]);
+          }
+        }
         return {
           totvs: linha[0],
           regiao: linha[1],
           estadual: linha[2],
           dirigente: linha[3],
           telefone: linha[4],
-          endereco: linha[5]
+          endereco: linha[5],
+          dataCadastro: dataCad
         };
       });
 

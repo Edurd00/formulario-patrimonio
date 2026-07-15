@@ -248,7 +248,7 @@ function exportarParaCSV() {
   }
 
   // Cabeçalhos das colunas
-  const colunas = ["TOTVS", "Regiao", "Estadual", "Dirigente", "Telefone", "Data Cadastro", "Endereco"];
+  const colunas = ["TOTVS", "Regiao", "Estadual", "Dirigente", "Telefone", "Endereco", "Data Cadastro"];
 
   // Linhas do CSV
   const linhas = [];
@@ -264,8 +264,8 @@ function exportarParaCSV() {
       igreja.estadual || "",
       igreja.dirigente || "",
       igreja.telefone || "",
-      igreja.dataCadastro || "",
-      igreja.endereco || ""
+      igreja.endereco || "",
+      igreja.dataCadastro || ""
     ];
 
     // Trata aspas duplas e quebras de linha para evitar quebrar o CSV
@@ -328,7 +328,7 @@ function atualizarKpis(dadosFiltrados) {
   console.log("Debug KPI - Período de busca:", limiteSeteDias.toLocaleDateString('pt-BR'), "até", hoje.toLocaleDateString('pt-BR'));
 
   const recentes = dadosFiltrados.filter((item, index) => {
-    const dataCrua = item.dataCadastro || item['Data Cadastro'] || item.datacadastro || item['data_cadastro'] || item.data;
+    const dataCrua = item.dataCadastro;
 
     if (index === 0) {
       console.log("Debug KPI - Exemplo de dado bruto recebido da planilha:", item);
