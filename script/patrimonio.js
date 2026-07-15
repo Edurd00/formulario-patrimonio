@@ -455,27 +455,143 @@ function coletarItensExtras() {
     .filter(item => item.nome);
 }
 
-document.getElementById("formularioPatrimonio").addEventListener("submit", async function (e) {
-  e.preventDefault();
+// =========================================
+// MODO OFFLINE COM AUTO-SINALIZAÇÃO e SINCRONIZAÇÃO
+// =========================================
 
-  if (sessionStorage.getItem("cadastroEnviado") === "true") return;
-  if (!validarEtapa(etapaAtual)) return;
+function mostrarTelaOffline() {
+  const progresso = document.getElementById("progresso-texto");
+  if (progresso) progresso.style.display = "none";
+  const wizardNav = document.getElementById("wizard-nav");
+  if (wizardNav) wizardNav.style.display = "none";
+  const resumoIgreja = document.getElementById("resumoIgreja");
+  if (resumoIgreja) resumoIgreja.style.display = "none";
+  const form = document.getElementById("formularioPatrimonio");
+  if (form) form.style.display = "none";
 
-  botaoSubmit.disabled = true;
-  botaoSubmit.innerText = "Enviando Dados...";
-  exibirMensagem("Processando informacoes e conectando com o Google Sheets...", "aviso");
+  let offlineContainer = document.getElementById("offline-container");
+  if (!offlineContainer) {
+    offlineContainer = document.createElement("div");
+    offlineContainer.id = "offline-container";
+    offlineContainer.className = "card offline-card";
+
+    offlineContainer.innerHTML = `
+      <div class="offline-icon-container">
+        <span class="offline-icon">☁️</span><span class="offline-icon-warn">⚠️</span>
+      </div>
+      <h2 class="offline-titulo">Cadastro Salvo no Celular!</h2>
+      <p class="offline-texto">
+        Pastor, identificamos que você está sem sinal de internet no momento.
+        Mas não se preocupe: todos os dados foram salvos localmente e estão seguros no seu aparelho.
+      </p>
+      <div class="offline-status" id="offline-status-msg" style="display: none;"></div>
+      <div class="offline-acoes">
+        <button type="button" id="btn-sincronizar" class="btn-sincronizar">
+          <span class="btn-spinner" id="btn-sincronizar-spinner" style="display: none;"></span>
+          <span id="btn-sincronizar-texto">🔄 Sincronizar Agora</span>
+        </button>
+      </div>
+    `;
+
+    const container = document.querySelector(".container");
+    container.insertBefore(offlineContainer, document.querySelector(".footer"));
+  } else {
+    offlineContainer.style.display = "block";
+  }
+
+  const btnSincronizar = document.getElementById("btn-sincronizar");
+  if (btnSincronizar) {
+    btnSincronizar.onclick = function() {
+      sincronizarDadosPendentesManual();
+    };
+  }
+}
+
+function tratarSucessoEnvio() {
+  localStorage.removeItem("cadastro_patrimonio_pendente");
+  limparRascunho();
+  localStorage.clear();
+  sessionStorage.setItem("cadastroEnviado", "true");
+
+  const offlineContainer = document.getElementById("offline-container");
+  if (offlineContainer) {
+    offlineContainer.innerHTML = `
+      <div class="offline-icon-container">
+        <span class="offline-icon" style="font-size: 60px;">✅</span>
+      </div>
+      <h2 class="offline-titulo" style="color: #2e7d32;">Enviado com Sucesso!</h2>
+      <p class="offline-texto">
+        O cadastro patrimonial foi enviado com sucesso para a planilha! Redirecionando...
+      </p>
+    `;
+    offlineContainer.style.display = "block";
+
+    const elementsToHide = ["progresso-texto", "wizard-nav", "resumoIgreja", "formularioPatrimonio"];
+    elementsToHide.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    });
+  } else {
+    exibirMensagem("Cadastro patrimonial enviado com sucesso para a planilha!", "sucesso");
+    botaoSubmit.innerText = "Enviado com Sucesso";
+  }
+
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 3500);
+}
+
+async function processarEnvioFormulario(dadosFinais) {
+  if (!navigator.onLine) {
+    localStorage.setItem("cadastro_patrimonio_pendente", JSON.stringify(dadosFinais));
+    mostrarTelaOffline();
+    return;
+  }
 
   try {
-    const formData = new FormData(this);
-    const dadosFormulario = {};
-
-    formData.forEach((valor, chave) => {
-      dadosFormulario[chave] = valor;
+    const resposta = await fetch(URL, {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(dadosFinais)
     });
 
-    dadosFormulario.itensExtras = JSON.stringify(coletarItensExtras());
+    const resultado = JSON.parse(await resposta.text());
 
-    const dadosFinais = { acao: "cadastrar", ...dadosIgreja, ...dadosFormulario };
+    if (resultado.sucesso) {
+      tratarSucessoEnvio();
+    } else {
+      exibirMensagem(resultado.mensagem || "Erro ao salvar na planilha.", "erro");
+      botaoSubmit.disabled = false;
+      botaoSubmit.innerText = "Finalizar Cadastro";
+    }
+  } catch (erro) {
+    localStorage.setItem("cadastro_patrimonio_pendente", JSON.stringify(dadosFinais));
+    mostrarTelaOffline();
+  }
+}
+
+async function sincronizarDadosPendentesManual() {
+  const dadosTexto = localStorage.getItem("cadastro_patrimonio_pendente");
+  if (!dadosTexto) return;
+
+  const btnSincronizar = document.getElementById("btn-sincronizar");
+  const spinner = document.getElementById("btn-sincronizar-spinner");
+  const btnTexto = document.getElementById("btn-sincronizar-texto");
+  const statusMsg = document.getElementById("offline-status-msg");
+
+  if (btnSincronizar) btnSincronizar.disabled = true;
+  if (spinner) spinner.style.display = "inline-block";
+  if (btnTexto) btnTexto.innerText = " Sincronizando...";
+
+  if (statusMsg) {
+    statusMsg.innerText = "Sincronizando com o Google Sheets...";
+    statusMsg.className = "offline-status aviso";
+    statusMsg.style.display = "block";
+  }
+
+  try {
+    const dadosFinais = JSON.parse(dadosTexto);
 
     const resposta = await fetch(URL, {
       method: "POST",
@@ -487,22 +603,83 @@ document.getElementById("formularioPatrimonio").addEventListener("submit", async
     const resultado = JSON.parse(await resposta.text());
 
     if (resultado.sucesso) {
-      sessionStorage.setItem("cadastroEnviado", "true");
-      exibirMensagem("Cadastro patrimonial enviado com sucesso para a planilha!", "sucesso");
-      botaoSubmit.innerText = "Enviado com Sucesso";
-      limparRascunho();
-      localStorage.clear();
-      setTimeout(() => { window.location.href = "index.html"; }, 3500);
+      tratarSucessoEnvio();
     } else {
-      exibirMensagem(resultado.mensagem || "Erro ao salvar na planilha.", "erro");
-      botaoSubmit.disabled = false;
-      botaoSubmit.innerText = "Finalizar Cadastro";
+      if (statusMsg) {
+        statusMsg.innerText = resultado.mensagem || "Erro ao salvar na planilha.";
+        statusMsg.className = "offline-status erro";
+      }
+      if (btnSincronizar) btnSincronizar.disabled = false;
+      if (spinner) spinner.style.display = "none";
+      if (btnTexto) btnTexto.innerText = "🔄 Sincronizar Agora";
     }
   } catch (erro) {
-    exibirMensagem("Erro de conexao com o banco de dados. Verifique a URL do App Script.", "erro");
-    botaoSubmit.disabled = false;
-    botaoSubmit.innerText = "Finalizar Cadastro";
+    if (statusMsg) {
+      statusMsg.innerText = "Sinal de internet instável. Tentando novamente em breve...";
+      statusMsg.className = "offline-status erro";
+    }
+    if (btnSincronizar) btnSincronizar.disabled = false;
+    if (spinner) spinner.style.display = "none";
+    if (btnTexto) btnTexto.innerText = "🔄 Sincronizar Agora";
   }
+}
+
+// Sincronização Automática Inteligente
+window.addEventListener("online", async function () {
+  const dadosTexto = localStorage.getItem("cadastro_patrimonio_pendente");
+  if (!dadosTexto) return;
+
+  const offlineContainer = document.getElementById("offline-container");
+  if (offlineContainer) {
+    sincronizarDadosPendentesManual();
+  } else {
+    try {
+      const dadosFinais = JSON.parse(dadosTexto);
+      const resposta = await fetch(URL, {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(dadosFinais)
+      });
+      const resultado = JSON.parse(await resposta.text());
+      if (resultado.sucesso) {
+        localStorage.removeItem("cadastro_patrimonio_pendente");
+        limparRascunho();
+        localStorage.clear();
+        sessionStorage.setItem("cadastroEnviado", "true");
+        exibirMensagem("Sincronização de segundo plano concluída com sucesso!", "sucesso");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 2000);
+      }
+    } catch (e) {
+      console.warn("Silent synchronization attempt failed due to connectivity issues.", e);
+    }
+  }
+});
+
+document.getElementById("formularioPatrimonio").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  if (sessionStorage.getItem("cadastroEnviado") === "true") return;
+  if (!validarEtapa(etapaAtual)) return;
+
+  botaoSubmit.disabled = true;
+  botaoSubmit.innerText = "Enviando Dados...";
+  exibirMensagem("Processando informacoes e conectando com o Google Sheets...", "aviso");
+
+  const formData = new FormData(this);
+  const dadosFormulario = {};
+
+  formData.forEach((valor, chave) => {
+    dadosFormulario[chave] = valor;
+  });
+
+  dadosFormulario.itensExtras = JSON.stringify(coletarItensExtras());
+
+  const dadosFinais = { acao: "cadastrar", ...dadosIgreja, ...dadosFormulario };
+
+  await processarEnvioFormulario(dadosFinais);
 });
 
 const CHAVE_STORAGE = "rascunho_inventario_patrimonio";
