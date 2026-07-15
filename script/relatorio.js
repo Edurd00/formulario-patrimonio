@@ -543,13 +543,36 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     </tr>
   `;
 
+  // --- INÍCIO DA CORREÇÃO CONTRA DUPLICIDADE ---
   const agregados = {};
 
+  // 1. Inicializa todas as regiões cadastradas em REGIOES no formato CAIXA ALTA padronizado
+  if (!regiaoFiltro) {
+    Object.keys(REGIOES).forEach(reg => {
+      // Normaliza para remover acentos e converte para CAIXA ALTA (padrão do banco)
+      const regPadronizada = normalizar(reg).toUpperCase();
+
+      agregados[regPadronizada] = {
+        "Mobiliário e Estrutura": 0,
+        "Eletrônicos e Climatização": 0,
+        "Som e Instrumentos": 0,
+        "Cozinha e Segurança": 0,
+        "Itens adicionais": 0,
+        "total": 0
+      };
+    });
+  }
+
+  // 2. Processa os patrimônios acumulando os valores exatamente nas chaves padronizadas
   patrimoniosFiltrados.forEach(p => {
     const igreja = totvsFiltradosMap[p.totvs];
     if (!igreja) return;
 
-    const rowKey = regiaoFiltro ? `${igreja.totvs} - ${igreja.dirigente || 'Igreja'}` : (igreja.regiao || "Outros");
+    // Se houver filtro de região, exibe o detalhe da igreja. Caso contrário, exibe a região unificada em CAIXA ALTA
+    const rowKey = regiaoFiltro
+      ? `${igreja.totvs} - ${igreja.dirigente || 'Igreja'}`
+      : normalizar(igreja.regiao || "Outros").toUpperCase();
+
     const qtd = parseInt(p.quantidade || p.Quantidade, 10) || 0;
 
     const nomeNormalizado = normalizar(p.patrimonio || p.Patrimonio);
@@ -592,26 +615,18 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     return;
   }
 
-  if (!regiaoFiltro) {
-    Object.keys(REGIOES).forEach(reg => {
-      if (!agregados[reg]) {
-        agregados[reg] = {
-          "Mobiliário e Estrutura": 0,
-          "Eletrônicos e Climatização": 0,
-          "Som e Instrumentos": 0,
-          "Cozinha e Segurança": 0,
-          "Itens adicionais": 0,
-          "total": 0
-        };
-      }
-    });
-  }
-
+  // 3. Renderiza as chaves sem duplicidades
   const chavesOrdenadas = Object.keys(agregados).sort();
 
   let htmlRows = "";
   chavesOrdenadas.forEach(key => {
     const data = agregados[key];
+
+    // Opcional: Se não houver filtro por região, removemos as linhas que continuaram zeradas após consolidação (se houver alguma região estática não utilizada)
+    if (!regiaoFiltro && data["total"] === 0) {
+      return;
+    }
+
     htmlRows += `
       <tr>
         <td><strong>${key}</strong></td>
@@ -626,6 +641,7 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
   });
 
   tbody.innerHTML = htmlRows;
+  // --- FIM DA CORREÇÃO CONTRA DUPLICIDADE ---
 }
 
 /** Renderiza a tabela de igrejas (filtrada ou completa) de forma paginada */
