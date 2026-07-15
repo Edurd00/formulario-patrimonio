@@ -480,10 +480,11 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
   let estadoCritico = 0;
 
   patrimoniosFiltrados.forEach(p => {
-    const qtd = parseInt(p.quantidade, 10) || 0;
+    // Aceita tanto p.quantidade quanto p.Quantidade
+    const qtd = parseInt(p.quantidade || p.Quantidade, 10) || 0;
     totalItens += qtd;
 
-    const conservacao = String(p.conservacao || "").toLowerCase().trim();
+    const conservacao = String(p.conservacao || p.Conservacao || "").toLowerCase().trim();
     if (conservacao === "ruim") {
       estadoCritico += qtd;
     }
@@ -547,9 +548,9 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     if (!igreja) return;
 
     const rowKey = regiaoFiltro ? `${igreja.totvs} - ${igreja.dirigente || 'Igreja'}` : (igreja.regiao || "Outros");
-    const qtd = parseInt(p.quantidade, 10) || 0;
+    const qtd = parseInt(p.quantidade || p.Quantidade, 10) || 0;
 
-    const nomeNormalizado = normalizar(p.patrimonio);
+    const nomeNormalizado = normalizar(p.patrimonio || p.Patrimonio);
     let cat = MAPA_CATEGORIAS[nomeNormalizado] || "Itens adicionais";
 
     if (!agregados[rowKey]) {
@@ -889,10 +890,14 @@ async function listarIgrejas() {
       return;
     }
 
-    // Carrega também a lista consolidada de patrimônios com tratamento de dados robusto
+    // Carrega a lista de patrimônios com tratamento de dados robusto e logs de diagnóstico
     try {
-      const respPatrimonio = await fetch(`${URL}?acao=listar_patrimonios&_t=${new Date().getTime()}`);
+      console.log("Debug Patrimônio - Iniciando busca de patrimônios...");
+      const urlPatrimonios = `${URL}?acao=listar_patrimonios&_t=${new Date().getTime()}`;
+      const respPatrimonio = await fetch(urlPatrimonios);
       const textPatrimonio = await respPatrimonio.text();
+
+      console.log("Debug Patrimônio - Resposta bruta recebida.");
       const resPatrimonio = JSON.parse(textPatrimonio);
 
       if (resPatrimonio.sucesso && resPatrimonio.dados) {
@@ -904,11 +909,13 @@ async function listarIgrejas() {
         } else {
           todosPatrimonios = [];
         }
+        console.log("Debug Patrimônio - Total carregado:", todosPatrimonios.length);
       } else {
+        console.warn("Debug Patrimônio - Falha na resposta da API:", resPatrimonio.mensagem);
         todosPatrimonios = [];
       }
     } catch (errPatrimonio) {
-      console.error("Erro ao carregar lista de patrimônios:", errPatrimonio);
+      console.error("Debug Patrimônio - Erro na requisição de ativos:", errPatrimonio);
       todosPatrimonios = []; // Fallback seguro para evitar que fique undefined
     }
 
