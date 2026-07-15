@@ -302,35 +302,30 @@ function atualizarKpis(dadosFiltrados) {
   const totalEstaduais = estaduaisUnicas.size;
 
   // Métrica 3: Cadastros Recentes (Últimos 7 dias)
+  function converterDataBr(dataStr) {
+    if (!dataStr) return null;
+    // Remove possíveis partes de hora se houver (ex: "15/07/2026 14:30" vira "15/07/2026")
+    const apenasData = dataStr.split(" ")[0];
+    const partes = apenasData.split("/");
+    if (partes.length !== 3) return null;
+
+    const dia = parseInt(partes[0], 10);
+    const mes = parseInt(partes[1], 10) - 1; // No JS, os meses começam em 0 (Janeiro = 0)
+    const ano = parseInt(partes[2], 10);
+
+    return new Date(ano, mes, dia);
+  }
+
   const hoje = new Date();
-  const seteDiasAtras = new Date();
-  seteDiasAtras.setDate(hoje.getDate() - 7);
-  seteDiasAtras.setHours(0, 0, 0, 0);
-  const hojeFim = new Date();
-  hojeFim.setHours(23, 59, 59, 999);
+  const limiteSeteDias = new Date(hoje.getTime() - (7 * 24 * 60 * 60 * 1000));
 
-  let cadastrosRecentes = 0;
-  dadosFiltrados.forEach(igreja => {
-    if (igreja.dataCadastro) {
-      const partes = igreja.dataCadastro.split('/');
-      let dataCad = null;
-      if (partes.length === 3) {
-        const dia = parseInt(partes[0], 10);
-        const mes = parseInt(partes[1], 10) - 1;
-        const ano = parseInt(partes[2], 10);
-        dataCad = new Date(ano, mes, dia);
-      } else {
-        const fallback = new Date(igreja.dataCadastro);
-        if (!isNaN(fallback.getTime())) {
-          dataCad = fallback;
-        }
-      }
-
-      if (dataCad && dataCad >= seteDiasAtras && dataCad <= hojeFim) {
-        cadastrosRecentes++;
-      }
-    }
+  const recentes = dadosFiltrados.filter(item => {
+    const dataItem = converterDataBr(item.dataCadastro || item['Data Cadastro']);
+    if (!dataItem) return false;
+    return dataItem >= limiteSeteDias && dataItem <= hoje;
   });
+
+  const cadastrosRecentes = recentes.length;
 
   // Métrica 4: Região com Mais Templos
   const contagemRegiao = {};
