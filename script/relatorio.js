@@ -570,8 +570,20 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
   // GARGALO CORRIGIDO: Garante que tratamos todosPatrimonios como array válido
   const arrayPatrimonios = Array.isArray(todosPatrimonios) ? todosPatrimonios : [];
 
+  const checkboxCritico = document.getElementById("filtro-estado-critico");
+  const apenasCriticos = checkboxCritico ? checkboxCritico.checked : false;
+
   const patrimoniosFiltrados = arrayPatrimonios.filter(p => {
-    return p && p.totvs && totvsFiltradosMap[p.totvs] !== undefined;
+    const pertenceIgrejaFiltrada = p && p.totvs && totvsFiltradosMap[p.totvs] !== undefined;
+    if (!pertenceIgrejaFiltrada) return false;
+
+    // Se o filtro estiver ativo, passa apenas o que for "ruim"
+    if (apenasCriticos) {
+      const conservacao = String(p.conservacao || p.Conservacao || "").toLowerCase().trim();
+      return conservacao === "ruim";
+    }
+
+    return true;
   });
 
   // Renderizar gráficos de distribuição de ativos
@@ -1232,6 +1244,15 @@ document.addEventListener("DOMContentLoaded", () => {
       tabIgrejas.classList.remove("active");
       conteudoTabIgrejas.style.display = "none";
       conteudoTabPatrimonio.style.display = "block";
+      atualizarGestaoPatrimonio(dadosFiltrados);
+    });
+  }
+
+  // Ouvinte para Auditoria de Compras (Estado Crítico)
+  const checkboxCritico = document.getElementById("filtro-estado-critico");
+  if (checkboxCritico) {
+    checkboxCritico.addEventListener("change", () => {
+      // Re-executa a atualização da aba de patrimônios com os dados de igrejas já filtrados na barra de busca
       atualizarGestaoPatrimonio(dadosFiltrados);
     });
   }
