@@ -4,6 +4,12 @@
 const URL = "https://script.google.com/macros/s/AKfycbyA_GPEXPKow6kQF25MoB9etleYbOGF17dRdbSSHXi634LzB_rsT9KGeumrhBGWkWQRTA/exec";
 
 /* =========================================
+   INSTÂNCIAS GLOBAIS DE GRÁFICOS (CHART.JS)
+========================================= */
+let instanciaChartCategorias = null;
+let instanciaChartConservacao = null;
+
+/* =========================================
    REGIÕES DO PROJETO (espelhando script.js)
 ========================================= */
 const REGIOES = {
@@ -430,6 +436,97 @@ function atualizarKpis(dadosFiltrados) {
 let todosPatrimonios = [];
 let isBackendOutdated = false;
 
+/** Renderiza os Gráficos de Distribuição de Ativos (Visão Executiva) via Chart.js */
+function renderizarGraficosPatrimonio(patrimoniosFiltrados) {
+  // A. Processamento para Categorias
+  const contagemCategorias = {
+    "Mobiliário": 0,
+    "Eletrônicos": 0,
+    "Som & Instrumentos": 0,
+    "Cozinha & Seg.": 0,
+    "Adicionais": 0
+  };
+
+  // B. Processamento para Conservação
+  const contagemConservacao = {
+    "Bom": 0,
+    "Regular": 0,
+    "Ruim": 0
+  };
+
+  patrimoniosFiltrados.forEach(p => {
+    const qtd = parseInt(p.quantidade || p.Quantidade, 10) || 0;
+
+    // Mapeamento de categorias
+    const nomeNormalizado = normalizar(p.patrimonio || p.Patrimonio);
+    let cat = MAPA_CATEGORIAS[nomeNormalizado] || "Itens adicionais";
+
+    if (cat === "Mobiliário e Estrutura") contagemCategorias["Mobiliário"] += qtd;
+    else if (cat === "Eletrônicos e Climatização") contagemCategorias["Eletrônicos"] += qtd;
+    else if (cat === "Som e Instrumentos") contagemCategorias["Som & Instrumentos"] += qtd;
+    else if (cat === "Cozinha e Segurança") contagemCategorias["Cozinha & Seg."] += qtd;
+    else contagemCategorias["Adicionais"] += qtd;
+
+    // Mapeamento de conservação
+    let estado = String(p.conservacao || p.Conservacao || "").trim().toLowerCase();
+    if (estado === "bom") contagemConservacao["Bom"] += qtd;
+    else if (estado === "regular") contagemConservacao["Regular"] += qtd;
+    else if (estado === "ruim") contagemConservacao["Ruim"] += qtd;
+  });
+
+  // C. Destruir instâncias antigas antes de recriar (para evitar sobreposição de dados)
+  if (instanciaChartCategorias) instanciaChartCategorias.destroy();
+  if (instanciaChartConservacao) instanciaChartConservacao.destroy();
+
+  // D. Criar Gráfico 1: Categorias (Doughnut Chart)
+  const ctxCat = document.getElementById('chartCategorias').getContext('2d');
+  instanciaChartCategorias = new Chart(ctxCat, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(contagemCategorias),
+      datasets: [{
+        data: Object.values(contagemCategorias),
+        backgroundColor: ['#24348c', '#3b82f6', '#10b981', '#f59e0b', '#64748b'],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { font: { family: 'Poppins', size: 11 } } }
+      }
+    }
+  });
+
+  // E. Criar Gráfico 2: Conservação (Bar Chart Horizontal)
+  const ctxCons = document.getElementById('chartConservacao').getContext('2d');
+  instanciaChartConservacao = new Chart(ctxCons, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(contagemConservacao),
+      datasets: [{
+        label: 'Quantidade',
+        data: Object.values(contagemConservacao),
+        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
 const MAPA_CATEGORIAS = {
   // Mobiliário e Estrutura
   "banco": "Mobiliário e Estrutura", "cadeira": "Mobiliário e Estrutura", "bebedourofiltro": "Mobiliário e Estrutura",
@@ -476,6 +573,9 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
   const patrimoniosFiltrados = arrayPatrimonios.filter(p => {
     return p && p.totvs && totvsFiltradosMap[p.totvs] !== undefined;
   });
+
+  // Renderizar gráficos de distribuição de ativos
+  renderizarGraficosPatrimonio(patrimoniosFiltrados);
 
   // KPIs de Ativos
   let totalItens = 0;
