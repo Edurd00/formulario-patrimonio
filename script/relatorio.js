@@ -284,9 +284,112 @@ function exportarParaCSV() {
   window.URL.revokeObjectURL(url);
 }
 
+/** Atualiza o dashboard de KPIs dinamicamente com base nos dados filtrados */
+function atualizarKpis(dadosFiltrados) {
+  const container = document.getElementById("kpi-dashboard");
+  if (!container) return;
+
+  // Métrica 1: Total de Igrejas
+  const totalIgrejas = dadosFiltrados.length;
+
+  // Métrica 2: Estaduais Únicas
+  const estaduaisUnicas = new Set();
+  dadosFiltrados.forEach(igreja => {
+    if (igreja.estadual) {
+      estaduaisUnicas.add(igreja.estadual.trim());
+    }
+  });
+  const totalEstaduais = estaduaisUnicas.size;
+
+  // Métrica 3: Cadastros Recentes (Últimos 7 dias)
+  const hoje = new Date();
+  const seteDiasAtras = new Date();
+  seteDiasAtras.setDate(hoje.getDate() - 7);
+  seteDiasAtras.setHours(0, 0, 0, 0);
+  const hojeFim = new Date();
+  hojeFim.setHours(23, 59, 59, 999);
+
+  let cadastrosRecentes = 0;
+  dadosFiltrados.forEach(igreja => {
+    if (igreja.dataCadastro) {
+      const partes = igreja.dataCadastro.split('/');
+      let dataCad = null;
+      if (partes.length === 3) {
+        const dia = parseInt(partes[0], 10);
+        const mes = parseInt(partes[1], 10) - 1;
+        const ano = parseInt(partes[2], 10);
+        dataCad = new Date(ano, mes, dia);
+      } else {
+        const fallback = new Date(igreja.dataCadastro);
+        if (!isNaN(fallback.getTime())) {
+          dataCad = fallback;
+        }
+      }
+
+      if (dataCad && dataCad >= seteDiasAtras && dataCad <= hojeFim) {
+        cadastrosRecentes++;
+      }
+    }
+  });
+
+  // Métrica 4: Região com Mais Templos
+  const contagemRegiao = {};
+  dadosFiltrados.forEach(igreja => {
+    if (igreja.regiao) {
+      const reg = igreja.regiao.trim();
+      contagemRegiao[reg] = (contagemRegiao[reg] || 0) + 1;
+    }
+  });
+
+  let regiaoMaisTemplos = "-";
+  let maxTemplos = 0;
+  for (const [reg, qtd] of Object.entries(contagemRegiao)) {
+    if (qtd > maxTemplos) {
+      maxTemplos = qtd;
+      regiaoMaisTemplos = reg;
+    }
+  }
+
+  const regiaoExibicao = maxTemplos > 0 ? regiaoMaisTemplos : "Nenhuma";
+
+  container.innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-info">
+        <span class="kpi-value">${totalIgrejas}</span>
+        <span class="kpi-label">Total de Igrejas</span>
+      </div>
+      <i class="fa-solid fa-church kpi-icon"></i>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-info">
+        <span class="kpi-value">${totalEstaduais}</span>
+        <span class="kpi-label">Estaduais Únicas</span>
+      </div>
+      <i class="fa-solid fa-map-location-dot kpi-icon"></i>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-info">
+        <span class="kpi-value">${cadastrosRecentes}</span>
+        <span class="kpi-label">Cadastros Recentes</span>
+      </div>
+      <i class="fa-solid fa-calendar-days kpi-icon"></i>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-info">
+        <span class="kpi-value" style="font-size: ${regiaoExibicao.length > 20 ? '16px' : regiaoExibicao.length > 15 ? '18px' : '22px'};">${regiaoExibicao}</span>
+        <span class="kpi-label">Região Líder</span>
+      </div>
+      <i class="fa-solid fa-trophy kpi-icon"></i>
+    </div>
+  `;
+}
+
 /** Renderiza a tabela de igrejas (filtrada ou completa) de forma paginada */
 function renderizarTabela(igrejas) {
   if (!listaIgrejasContainer) return;
+
+  // Atualiza os KPIs dinamicamente
+  atualizarKpis(igrejas);
 
   const contagem = document.getElementById("contagem-igrejas");
   if (contagem) {
