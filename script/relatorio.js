@@ -727,29 +727,90 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     return;
   }
 
-  // 3. Renderiza as chaves sem duplicidades
+  // 3. Renderiza as chaves sem duplicidades (com efeito Accordion opcional se regiaoFiltro estiver ativo)
   const chavesOrdenadas = Object.keys(agregados).sort();
 
   let htmlRows = "";
   chavesOrdenadas.forEach(key => {
     const data = agregados[key];
 
-    // Opcional: Se não houver filtro por região, removemos as linhas que continuaram zeradas após consolidação (se houver alguma região estática não utilizada)
+    // Remove linhas zeradas se não houver filtro de região
     if (!regiaoFiltro && data["total"] === 0) {
       return;
     }
 
-    htmlRows += `
-      <tr>
-        <td><strong>${key}</strong></td>
-        <td>${data["Mobiliário e Estrutura"]}</td>
-        <td>${data["Eletrônicos e Climatização"]}</td>
-        <td>${data["Som e Instrumentos"]}</td>
-        <td>${data["Cozinha e Segurança"]}</td>
-        <td>${data["Itens adicionais"]}</td>
-        <td style="color:#24348c; font-weight:700;">${data["total"]}</td>
-      </tr>
-    `;
+    // Se estivermos vendo as igrejas congregações individuais, habilitamos o Accordion
+    if (regiaoFiltro) {
+      // Extrai o código TOTVS a partir da chave (ex: "17689 - MARIA VARDEILEI" -> "17689")
+      const totvsIgreja = key.split(" - ")[0].trim();
+
+      // Busca todos os patrimônios individuais desta igreja específica
+      const itensDaIgreja = patrimoniosFiltrados.filter(p => p && p.totvs == totvsIgreja);
+
+      // Cria a sub-tabela interna do Accordion
+      let subTabelaHtml = `
+        <table class="tabela-detalhe-interna">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th style="text-align: center;">Qtd</th>
+              <th style="text-align: center;">Estado</th>
+              <th>Observações</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      itensDaIgreja.forEach(item => {
+        const estadoClass = String(item.conservacao || "").toLowerCase().trim();
+        subTabelaHtml += `
+          <tr>
+            <td><strong>${item.patrimonio || "-"}</strong></td>
+            <td style="text-align: center;">${item.quantidade || 0}</td>
+            <td style="text-align: center;">
+              <span class="status-estado estado-${estadoClass}">${item.conservacao || "-"}</span>
+            </td>
+            <td>${item.observacao || "-"}</td>
+          </tr>
+        `;
+      });
+
+      subTabelaHtml += `</tbody></table>`;
+
+      // Linha Principal com a seta e Linha de Detalhe oculta
+      htmlRows += `
+        <tr class="linha-clicavel" onclick="toggleAccordionRow('${totvsIgreja}')">
+          <td>
+            <i class="fa-solid fa-chevron-right seta-accordion" id="seta-${totvsIgreja}"></i>
+            <strong>${key}</strong>
+          </td>
+          <td>${data["Mobiliário e Estrutura"]}</td>
+          <td>${data["Eletrônicos e Climatização"]}</td>
+          <td>${data["Som e Instrumentos"]}</td>
+          <td>${data["Cozinha e Segurança"]}</td>
+          <td>${data["Itens adicionais"]}</td>
+          <td style="color:#24348c; font-weight:700;">${data["total"]}</td>
+        </tr>
+        <tr class="linha-detalhe-accordion" id="detalhe-${totvsIgreja}" style="display: none;">
+          <td colspan="7" style="padding: 10px 25px;">
+            ${subTabelaHtml}
+          </td>
+        </tr>
+      `;
+    } else {
+      // Linha normal para visualização de Regiões Consolidadas (sem Accordion)
+      htmlRows += `
+        <tr>
+          <td><strong>${key}</strong></td>
+          <td>${data["Mobiliário e Estrutura"]}</td>
+          <td>${data["Eletrônicos e Climatização"]}</td>
+          <td>${data["Som e Instrumentos"]}</td>
+          <td>${data["Cozinha e Segurança"]}</td>
+          <td>${data["Itens adicionais"]}</td>
+          <td style="color:#24348c; font-weight:700;">${data["total"]}</td>
+        </tr>
+      `;
+    }
   });
 
   tbody.innerHTML = htmlRows;
@@ -1260,3 +1321,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // Carrega lista de igrejas
   listarIgrejas();
 });
+
+/** Controla o efeito de abrir/fechar o Accordion (Sanfona) e girar a seta */
+function toggleAccordionRow(totvs) {
+  const linhaDetalhe = document.getElementById(`detalhe-${totvs}`);
+  const seta = document.getElementById(`seta-${totvs}`);
+
+  if (linhaDetalhe && seta) {
+    if (linhaDetalhe.style.display === "none") {
+      linhaDetalhe.style.display = "table-row";
+      seta.classList.add("aberta");
+    } else {
+      linhaDetalhe.style.display = "none";
+      seta.classList.remove("aberta");
+    }
+  }
+}

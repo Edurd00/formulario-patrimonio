@@ -298,6 +298,51 @@
             cursor: not-allowed;
             background-color: #f4f6f9;
         }
+
+        /* Linha de detalhe oculta por padrão */
+        .linha-detalhe-accordion {
+            background-color: #f8fafc !important;
+            transition: all 0.3s ease;
+        }
+
+        .tabela-detalhe-interna {
+            width: 100%;
+            margin: 10px 0;
+            border-collapse: collapse;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .tabela-detalhe-interna th {
+            background-color: #475569 !important; /* Cinza escuro elegante */
+            color: #ffffff !important;
+            font-size: 11px !important;
+            padding: 8px 12px !important;
+        }
+
+        .tabela-detalhe-interna td {
+            font-size: 12px !important;
+            padding: 8px 12px !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        /* Efeito de rotação no ícone de seta */
+        .seta-accordion {
+            transition: transform 0.2s ease;
+            color: #24348c;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        .seta-accordion.aberta {
+            transform: rotate(90deg);
+        }
+
+        .linha-clicavel {
+            cursor: pointer;
+        }
     </style>
 </head>
 
