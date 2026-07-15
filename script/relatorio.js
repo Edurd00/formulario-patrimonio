@@ -352,13 +352,14 @@ function atualizarKpis(dadosFiltrados) {
   const recentes = dadosSeguros.filter((item, index) => {
     if (!item) return false;
 
-    // CORREÇÃO CIRÚRGICA: Captura exatamente o campo enviado pelo backend (dataCadastro)
-    // ou busca em formatos alternativos caso haja alguma conversão intermediária
-    const dataCrua = item.dataCadastro || item.datacadastro || item["Data Cadastro"] || item.data_cadastro;
-
+    // Imprime no console a estrutura exata do objeto para vermos quais propriedades existem
     if (index === 0) {
-      console.log("Debug KPI - Campo de data bruto extraído com sucesso:", dataCrua);
+      console.log("DIAGNÓSTICO REAL - Chaves que existem no objeto igreja:", Object.keys(item));
+      console.log("DIAGNÓSTICO REAL - JSON completo do objeto:", JSON.stringify(item));
     }
+
+    // Procura por qualquer variação de propriedade de data
+    const dataCrua = item.dataCadastro || item.datacadastro || item.data_cadastro || item["Data Cadastro"] || item.data;
 
     const dataItem = converterDataBr(dataCrua);
     if (!dataItem) return false;
@@ -890,33 +891,23 @@ async function listarIgrejas() {
       return;
     }
 
-    // Carrega a lista de patrimônios com tratamento de dados robusto e logs de diagnóstico
+    // Carrega também a lista de patrimônios com logs de diagnóstico completos
     try {
-      console.log("Debug Patrimônio - Iniciando busca de patrimônios...");
-      const urlPatrimonios = `${URL}?acao=listar_patrimonios&_t=${new Date().getTime()}`;
-      const respPatrimonio = await fetch(urlPatrimonios);
+      const respPatrimonio = await fetch(`${URL}?acao=listar_patrimonios&_t=${new Date().getTime()}`);
       const textPatrimonio = await respPatrimonio.text();
+      console.log("DIAGNÓSTICO PATRIMÔNIO - Resposta bruta do servidor:", textPatrimonio);
 
-      console.log("Debug Patrimônio - Resposta bruta recebida.");
       const resPatrimonio = JSON.parse(textPatrimonio);
-
       if (resPatrimonio.sucesso && resPatrimonio.dados) {
-        // Garante a extração do array mesmo em múltiplos formatos de retorno do Apps Script
-        if (Array.isArray(resPatrimonio.dados)) {
-          todosPatrimonios = resPatrimonio.dados;
-        } else if (resPatrimonio.dados.dados && Array.isArray(resPatrimonio.dados.dados)) {
-          todosPatrimonios = resPatrimonio.dados.dados;
-        } else {
-          todosPatrimonios = [];
-        }
-        console.log("Debug Patrimônio - Total carregado:", todosPatrimonios.length);
+        todosPatrimonios = Array.isArray(resPatrimonio.dados) ? resPatrimonio.dados : (resPatrimonio.dados.dados || []);
+        console.log("DIAGNÓSTICO PATRIMÔNIO - Array processado com sucesso. Itens:", todosPatrimonios.length);
       } else {
-        console.warn("Debug Patrimônio - Falha na resposta da API:", resPatrimonio.mensagem);
+        console.warn("DIAGNÓSTICO PATRIMÔNIO - Resposta sem sucesso ou dados ausentes:", resPatrimonio.mensagem);
         todosPatrimonios = [];
       }
     } catch (errPatrimonio) {
-      console.error("Debug Patrimônio - Erro na requisição de ativos:", errPatrimonio);
-      todosPatrimonios = []; // Fallback seguro para evitar que fique undefined
+      console.error("DIAGNÓSTICO PATRIMÔNIO - Falha catastrófica ao buscar ativos:", errPatrimonio);
+      todosPatrimonios = [];
     }
 
     // Popula o filtro de regiões e de estaduais e renderiza a tabela
