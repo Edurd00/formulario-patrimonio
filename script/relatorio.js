@@ -346,12 +346,18 @@ function atualizarKpis(dadosFiltrados) {
 
   console.log("Debug KPI - Período de busca:", limiteSeteDias.toLocaleDateString('pt-BR'), "até", hoje.toLocaleDateString('pt-BR'));
 
-  const recentes = dadosFiltrados.filter((item, index) => {
-    const dataCrua = item.dataCadastro;
+  // Proteção para garantir array válido em dadosFiltrados
+  const dadosSeguros = Array.isArray(dadosFiltrados) ? dadosFiltrados : [];
+
+  const recentes = dadosSeguros.filter((item, index) => {
+    if (!item) return false;
+
+    // CORREÇÃO CIRÚRGICA: Captura exatamente o campo enviado pelo backend (dataCadastro)
+    // ou busca em formatos alternativos caso haja alguma conversão intermediária
+    const dataCrua = item.dataCadastro || item.datacadastro || item["Data Cadastro"] || item.data_cadastro;
 
     if (index === 0) {
-      console.log("Debug KPI - Exemplo de dado bruto recebido da planilha:", item);
-      console.log("Debug KPI - Campo de data detectado:", dataCrua);
+      console.log("Debug KPI - Campo de data bruto extraído com sucesso:", dataCrua);
     }
 
     const dataItem = converterDataBr(dataCrua);
