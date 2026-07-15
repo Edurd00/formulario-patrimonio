@@ -112,13 +112,13 @@ async function executarAcaoRelatorio(acao, botao, textoProcessando) {
   botao.innerText = textoProcessando;
   exibirMensagemRelatorio("Consultando o banco de dados...", "aviso");
   try {
-    const response = await fetch(URL, {
+    const resposta = await fetch(URL, {
       method: "POST",
       mode: "cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ acao, totvs: codigo })
     });
-    const textoResposta = await response.text();
+    const textoResposta = await resposta.text();
     let resultado;
     try { resultado = JSON.parse(textoResposta); }
     catch (parseError) {
@@ -130,7 +130,7 @@ async function executarAcaoRelatorio(acao, botao, textoProcessando) {
     if (resultado.dados && resultado.dados.url) window.open(resultado.dados.url, "_blank");
     if (resultado.dados && resultado.dados.pastaUrl) {
       exibirMensagemRelatorioComLink(
-        "PDF saved in folder " + resultado.dados.pasta + ".",
+        "PDF salvo na pasta " + resultado.dados.pasta + ".",
         "sucesso", "Abrir pasta no Drive", resultado.dados.pastaUrl
       );
     }
@@ -172,7 +172,7 @@ function normalizar(str) {
     .trim();
 }
 
-/** Converte string de data brasileira ou formato ISO em objeto Date do JS de forma robusta */
+/** Converte string de data brasileira em objeto Date do JS */
 function converterDataBr(dataStr) {
   if (!dataStr) return null;
 
@@ -277,7 +277,6 @@ function exportarParaCSV() {
 
   // Adiciona cada igreja filtrada
   igrejasFiltradas.forEach(igreja => {
-    if (!igreja) return;
     const dados = [
       igreja.totvs || "",
       igreja.regiao || "",
@@ -305,19 +304,19 @@ function exportarParaCSV() {
 
   // Cria o blob e faz o download do arquivo
   const blob = new Blob([conteudoCSV], { type: "text/csv;charset=utf-8;" });
-  const urlBlob = window.URL.createObjectURL(blob);
+  const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
 
   // Nome do arquivo com timestamp para evitar substituição
   const dataFormatada = new Date().toISOString().slice(0, 10);
-  link.setAttribute("href", urlBlob);
+  link.setAttribute("href", url);
   link.setAttribute("download", `relatorio_igrejas_${dataFormatada}.csv`);
   link.style.visibility = 'hidden';
 
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  window.URL.revokeObjectURL(urlBlob);
+  window.URL.revokeObjectURL(url);
 }
 
 /** Atualiza o dashboard de KPIs dinamicamente com base nos dados filtrados */
@@ -325,16 +324,13 @@ function atualizarKpis(dadosFiltrados) {
   const container = document.getElementById("kpi-dashboard");
   if (!container) return;
 
-  // Proteção para evitar travamento se o array for indefinido ou nulo
-  const dadosSeguros = Array.isArray(dadosFiltrados) ? dadosFiltrados : [];
-
   // Métrica 1: Total de Igrejas
-  const totalIgrejas = dadosSeguros.length;
+  const totalIgrejas = dadosFiltrados.length;
 
   // Métrica 2: Estaduais Únicas
   const estaduaisUnicas = new Set();
-  dadosSeguros.forEach(igreja => {
-    if (igreja && igreja.estadual) {
+  dadosFiltrados.forEach(igreja => {
+    if (igreja.estadual) {
       estaduaisUnicas.add(igreja.estadual.trim());
     }
   });
@@ -350,13 +346,11 @@ function atualizarKpis(dadosFiltrados) {
 
   console.log("Debug KPI - Período de busca:", limiteSeteDias.toLocaleDateString('pt-BR'), "até", hoje.toLocaleDateString('pt-BR'));
 
-  const recentes = dadosSeguros.filter((item, index) => {
-    if (!item) return false;
-    // Tenta obter a data utilizando todas as chaves possíveis para evitar conflitos de nomenclatura
-    const dataCrua = item.dataCadastro || item.data_cadastro || item.datacadastro || item["Data Cadastro"];
+  const recentes = dadosFiltrados.filter((item, index) => {
+    const dataCrua = item.dataCadastro;
 
     if (index === 0) {
-      console.log("Debug KPI - Dado mapeado com sucesso:", item);
+      console.log("Debug KPI - Exemplo de dado bruto recebido da planilha:", item);
       console.log("Debug KPI - Campo de data detectado:", dataCrua);
     }
 
@@ -373,8 +367,8 @@ function atualizarKpis(dadosFiltrados) {
 
   // Métrica 4: Região com Mais Templos
   const contagemRegiao = {};
-  dadosSeguros.forEach(igreja => {
-    if (igreja && igreja.regiao) {
+  dadosFiltrados.forEach(igreja => {
+    if (igreja.regiao) {
       const reg = igreja.regiao.trim();
       contagemRegiao[reg] = (contagemRegiao[reg] || 0) + 1;
     }
@@ -468,8 +462,10 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     }
   });
 
-  // Proteção contra itens de patrimônio nulos ou inacabados no banco
-  const patrimoniosFiltrados = todosPatrimonios.filter(p => {
+  // GARGALO CORRIGIDO: Garante que tratamos todosPatrimonios como array válido
+  const arrayPatrimonios = Array.isArray(todosPatrimonios) ? todosPatrimonios : [];
+
+  const patrimoniosFiltrados = arrayPatrimonios.filter(p => {
     return p && p.totvs && totvsFiltradosMap[p.totvs] !== undefined;
   });
 
@@ -657,7 +653,6 @@ function renderizarTabela(igrejas) {
   `;
 
   dadosExibidos.forEach(igreja => {
-    if (!igreja) return;
     html += `
       <tr>
         <td><strong>${igreja.totvs || '-'}</strong></td>
@@ -842,8 +837,8 @@ async function listarIgrejas() {
     </p>`;
 
   try {
-    const response = await fetch(`${URL}?acao=listar_igrejas&_t=${new Date().getTime()}`);
-    const textoResposta = await response.text();
+    const resposta = await fetch(`${URL}?acao=listar_igrejas&_t=${new Date().getTime()}`);
+    const textoResposta = await resposta.text();
     let resultado;
     try { resultado = JSON.parse(textoResposta); }
     catch (parseError) {
@@ -888,16 +883,27 @@ async function listarIgrejas() {
       return;
     }
 
-    // Carrega também a lista consolidada de patrimônios
+    // Carrega também a lista consolidada de patrimônios com tratamento de dados robusto
     try {
       const respPatrimonio = await fetch(`${URL}?acao=listar_patrimonios&_t=${new Date().getTime()}`);
       const textPatrimonio = await respPatrimonio.text();
       const resPatrimonio = JSON.parse(textPatrimonio);
-      if (resPatrimonio.sucesso) {
-        todosPatrimonios = resPatrimonio.dados || [];
+
+      if (resPatrimonio.sucesso && resPatrimonio.dados) {
+        // Garante a extração do array mesmo em múltiplos formatos de retorno do Apps Script
+        if (Array.isArray(resPatrimonio.dados)) {
+          todosPatrimonios = resPatrimonio.dados;
+        } else if (resPatrimonio.dados.dados && Array.isArray(resPatrimonio.dados.dados)) {
+          todosPatrimonios = resPatrimonio.dados.dados;
+        } else {
+          todosPatrimonios = [];
+        }
+      } else {
+        todosPatrimonios = [];
       }
     } catch (errPatrimonio) {
       console.error("Erro ao carregar lista de patrimônios:", errPatrimonio);
+      todosPatrimonios = []; // Fallback seguro para evitar que fique undefined
     }
 
     // Popula o filtro de regiões e de estaduais e renderiza a tabela
@@ -943,8 +949,8 @@ async function exibirDetalhesIgreja(totvs, botao) {
   if (botao) { botao.disabled = true; botao.innerHTML = "⏳ Buscando..."; }
 
   try {
-    const response = await fetch(`${URL}?acao=obter_detalhes&totvs=${totvs}&_t=${new Date().getTime()}`);
-    const textoResposta = await response.text();
+    const resposta = await fetch(`${URL}?acao=obter_detalhes&totvs=${totvs}&_t=${new Date().getTime()}`);
+    const textoResposta = await resposta.text();
     let resultado;
     try { resultado = JSON.parse(textoResposta); }
     catch (parseError) {
@@ -1019,13 +1025,13 @@ async function gerarPdfTabela(totvs, botao) {
   botao.disabled = true;
   botao.innerText = "⏳ Gerando...";
   try {
-    const response = await fetch(URL, {
+    const resposta = await fetch(URL, {
       method: "POST",
       mode: "cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ acao: "exportarPdf", totvs })
     });
-    const resultado = JSON.parse(await response.text());
+    const resultado = JSON.parse(await resposta.text());
     if (resultado.sucesso && resultado.dados && resultado.dados.url) {
       window.open(resultado.dados.url, "_blank");
     } else {
