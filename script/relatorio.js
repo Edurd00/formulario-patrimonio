@@ -1002,7 +1002,6 @@ function rolarParaTabela() {
   }
 }
 
-/** Aplica os filtros de busca, região e estadual sobre todasIgrejas */
 function aplicarFiltros() {
   const termoBusca = normalizar(
     (document.getElementById("filtro-igrejas") || {}).value || ""
@@ -1016,8 +1015,8 @@ function aplicarFiltros() {
 
   paginaAtual = 1; // Reseta para a página 1 ao filtrar
 
-  const filtradas = todasIgrejas.filter(igreja => {
-    // Evita crash se o registro estiver vazio ou nulo na planilha
+  // Passo 1: Filtrar os dados brutos
+  let filtradas = todasIgrejas.filter(igreja => {
     if (!igreja) return false;
 
     const matchBusca = !termoBusca || [
@@ -1030,6 +1029,29 @@ function aplicarFiltros() {
 
     return matchBusca && matchRegiao && matchEstadual;
   });
+
+  // Passo 2: Aplicar ordenação inteligente baseada no termo de busca
+  if (termoBusca) {
+    filtradas.sort((a, b) => {
+      const nomeA = normalizar(a.dirigente || "");
+      const nomeB = normalizar(b.dirigente || "");
+      const estadualA = normalizar(a.estadual || "");
+      const estadualB = normalizar(b.estadual || "");
+
+      // Critério 1: Verifica se o dirigente é uma Sede/Estadual ou se contém palavras-chave de Sede
+      const ehSedeA = nomeA.includes("sede") || nomeA.includes("estadual") || estadualA === termoBusca;
+      const ehSedeB = nomeB.includes("sede") || nomeB.includes("estadual") || estadualB === termoBusca;
+
+      if (ehSedeA && !ehSedeB) return -1; // Sede A sobe
+      if (!ehSedeA && ehSedeB) return 1;  // Sede B sobe
+
+      // Critério 2: Se nenhum ou ambos forem Sede, ordena em ordem alfabética pelo nome do dirigente/congregação
+      return nomeA.localeCompare(nomeB);
+    });
+  } else if (regiaoSelecionada || estadualSelecionada) {
+    // Se filtramos por selects de região, mantemos em ordem alfabética para facilitar a leitura visual
+    filtradas.sort((a, b) => normalizar(a.dirigente || "").localeCompare(normalizar(b.dirigente || "")));
+  }
 
   dadosFiltrados = filtradas;
   igrejasFiltradas = filtradas;
@@ -1077,9 +1099,12 @@ async function listarIgrejas() {
       }
     }
 
-    todasIgrejas = igrejas;
-    dadosFiltrados = igrejas;
-    igrejasFiltradas = igrejas;
+    // Inverte a lista de dados vinda do Apps Script para exibir os cadastros mais recentes primeiro
+    const igrejasOrdenadas = [...igrejas].reverse();
+
+    todasIgrejas = igrejasOrdenadas;
+    dadosFiltrados = igrejasOrdenadas;
+    igrejasFiltradas = igrejasOrdenadas;
     paginaAtual = 1;
 
     if (igrejas.length === 0) {
