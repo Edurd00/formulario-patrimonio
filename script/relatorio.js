@@ -428,6 +428,7 @@ function atualizarKpis(dadosFiltrados) {
    GESTÃO DE PATRIMÔNIO - ABAS E CONSOLIDAÇÃO
 ========================================= */
 let todosPatrimonios = [];
+let isBackendOutdated = false;
 
 const MAPA_CATEGORIAS = {
   // Mobiliário e Estrutura
@@ -568,6 +569,17 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     agregados[rowKey][cat] += qtd;
     agregados[rowKey]["total"] += qtd;
   });
+
+  if (isBackendOutdated) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; color: #d97706; padding: 25px; font-weight: 500;">
+          ⚠️ Por favor, atualize e implante novamente o seu Google Apps Script (New Deployment) para habilitar esta aba. Veja as instruções detalhadas no alerta no topo do painel administrativo.
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
   if (Object.keys(agregados).length === 0) {
     tbody.innerHTML = `
@@ -898,7 +910,13 @@ async function listarIgrejas() {
       console.log("DIAGNÓSTICO PATRIMÔNIO - Resposta bruta do servidor:", textPatrimonio);
 
       const resPatrimonio = JSON.parse(textPatrimonio);
-      if (resPatrimonio.sucesso && resPatrimonio.dados) {
+      if (resPatrimonio.sucesso && resPatrimonio.mensagem === "Backend online.") {
+        isBackendOutdated = true;
+        const alertaBackend = document.getElementById("alerta-atualizacao-backend");
+        if (alertaBackend) alertaBackend.style.display = "block";
+        console.warn("DIAGNÓSTICO - Google Apps Script desatualizado detectado!");
+        todosPatrimonios = [];
+      } else if (resPatrimonio.sucesso && resPatrimonio.dados) {
         todosPatrimonios = Array.isArray(resPatrimonio.dados) ? resPatrimonio.dados : (resPatrimonio.dados.dados || []);
         console.log("DIAGNÓSTICO PATRIMÔNIO - Array processado com sucesso. Itens:", todosPatrimonios.length);
       } else {

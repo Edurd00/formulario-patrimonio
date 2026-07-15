@@ -318,6 +318,18 @@
         <h1 class="no-print">Painel Administrativo</h1>
         <p class="subtitulo no-print">Gerencie e visualize os patrimônios de todas as igrejas cadastradas</p>
 
+        <!-- Alerta de Atualização de Backend -->
+        <div id="alerta-atualizacao-backend" class="mensagem-status aviso no-print" style="display: none; text-align: left; padding: 20px; border-radius: 12px; margin-bottom: 24px; border-left: 5px solid #d97706; width: 100%; box-sizing: border-box;">
+            <h3 style="color: #b78103; margin-bottom: 8px;"><i class="fa-solid fa-triangle-exclamation"></i> Atualização Necessária do Apps Script</h3>
+            <p style="margin-bottom: 12px; line-height: 1.5; font-size: 14px;">Identificamos que a versão atualmente publicada do seu <strong>Google Apps Script (Web App)</strong> está desatualizada e não contém os novos recursos de banco de dados para a <strong>"Gestão de Patrimônio"</strong> e <strong>"Data de Cadastro"</strong> das igrejas.</p>
+            <p style="margin-bottom: 12px; line-height: 1.5; font-size: 14px;"><strong>Para corrigir e ativar os cards imediatamente, siga estes 3 passos simples:</strong></p>
+            <ol style="margin-left: 20px; font-size: 13.5px; line-height: 1.6; color: #555; padding-left: 10px;">
+                <li>Abra o seu painel do <strong>Google Apps Script</strong> (script.google.com).</li>
+                <li>Copie o conteúdo atualizado dos arquivos locais da pasta <code>codigo API/</code> do repositório (especialmente o <code>database.gs.txt</code> e <code>code.gs.txt</code>) para os respectivos arquivos no editor do Apps Script.</li>
+                <li>Clique em <strong>Implantar (Deploy)</strong> &rarr; <strong>Nova Implantação (New Deployment)</strong>, selecione o tipo "Aplicativo Web" e configure o acesso para "Qualquer pessoa" (Anyone). Salve e substitua a URL correspondente no seu <code>relatorio.js</code>.</li>
+            </ol>
+        </div>
+
         <!-- ================================================
              SEÇÃO: GERAR RELATÓRIO INDIVIDUAL
         ================================================ -->
