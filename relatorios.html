@@ -16,11 +16,98 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="img/favicon.jpg" type="image/jpeg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style/style.css">
     <style>
         /* ================================================
            PAINEL ADMINISTRATIVO - ESTILOS ESPECÍFICOS
         ================================================ */
+
+        /* ---- INTERFACE DE ABAS ---- */
+        .tabs-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 12px;
+        }
+
+        .tab-btn {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: auto;
+        }
+
+        .tab-btn:hover {
+            background-color: #e2e8f0;
+            color: #24348c;
+        }
+
+        .tab-btn.active {
+            background-color: #24348c;
+            color: #ffffff;
+            border-color: #24348c;
+            box-shadow: 0 4px 10px rgba(36, 52, 140, 0.15);
+        }
+
+        /* ---- DASHBOARD DE KPIS ---- */
+        .kpi-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-left: 5px solid #24348c;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .kpi-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #24348c;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+
+        .kpi-label {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .kpi-icon {
+            font-size: 28px;
+            color: #24348c;
+            opacity: 0.85;
+            margin-left: 10px;
+        }
 
         /* Container mais largo para o painel */
         .container-relatorio {
@@ -169,6 +256,46 @@
             gap: 15px;
             margin-bottom: 20px;
         }
+
+        /* ---- PAGINAÇÃO ---- */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .pag-btn {
+            background-color: #fff;
+            color: #24348c;
+            border: 1.5px solid #d0d9f0;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: auto;
+        }
+
+        .pag-btn:hover:not(:disabled) {
+            background-color: #f0f4ff;
+            border-color: #24348c;
+        }
+
+        .pag-btn.ativo {
+            background-color: #24348c;
+            color: #fff;
+            border-color: #24348c;
+        }
+
+        .pag-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #f4f6f9;
+        }
     </style>
 </head>
 
@@ -190,6 +317,18 @@
 
         <h1 class="no-print">Painel Administrativo</h1>
         <p class="subtitulo no-print">Gerencie e visualize os patrimônios de todas as igrejas cadastradas</p>
+
+        <!-- Alerta de Atualização de Backend -->
+        <div id="alerta-atualizacao-backend" class="mensagem-status aviso no-print" style="display: none; text-align: left; padding: 20px; border-radius: 12px; margin-bottom: 24px; border-left: 5px solid #d97706; width: 100%; box-sizing: border-box;">
+            <h3 style="color: #b78103; margin-bottom: 8px;"><i class="fa-solid fa-triangle-exclamation"></i> Atualização Necessária do Apps Script</h3>
+            <p style="margin-bottom: 12px; line-height: 1.5; font-size: 14px;">Identificamos que a versão atualmente publicada do seu <strong>Google Apps Script (Web App)</strong> está desatualizada e não contém os novos recursos de banco de dados para a <strong>"Gestão de Patrimônio"</strong> e <strong>"Data de Cadastro"</strong> das igrejas.</p>
+            <p style="margin-bottom: 12px; line-height: 1.5; font-size: 14px;"><strong>Para corrigir e ativar os cards imediatamente, siga estes 3 passos simples:</strong></p>
+            <ol style="margin-left: 20px; font-size: 13.5px; line-height: 1.6; color: #555; padding-left: 10px;">
+                <li>Abra o seu painel do <strong>Google Apps Script</strong> (script.google.com).</li>
+                <li>Copie o conteúdo atualizado dos arquivos locais da pasta <code>codigo API/</code> do repositório (especialmente o <code>database.gs.txt</code> e <code>code.gs.txt</code>) para os respectivos arquivos no editor do Apps Script.</li>
+                <li>Clique em <strong>Implantar (Deploy)</strong> &rarr; <strong>Nova Implantação (New Deployment)</strong>, selecione o tipo "Aplicativo Web" e configure o acesso para "Qualquer pessoa" (Anyone). Salve e substitua a URL correspondente no seu <code>relatorio.js</code>.</li>
+            </ol>
+        </div>
 
         <!-- ================================================
              SEÇÃO: GERAR RELATÓRIO INDIVIDUAL
@@ -287,6 +426,14 @@
         <section class="card">
             <h2>Igrejas Cadastradas</h2>
 
+            <div class="kpi-dashboard no-print" id="kpi-dashboard"></div>
+
+            <!-- Abas de Alternância (Tabs) -->
+            <div class="tabs-container no-print">
+                <button type="button" class="tab-btn active" id="tab-igrejas">⛪ Lista de Igrejas</button>
+                <button type="button" class="tab-btn" id="tab-patrimonio">📦 Gestão de Patrimônio</button>
+            </div>
+
             <!-- Barra de busca e filtros -->
             <div class="barra-busca-principal no-print" style="flex-direction: column; align-items: stretch; gap: 12px;">
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; width: 100%;">
@@ -314,9 +461,35 @@
                 </div>
             </div>
 
-            <!-- Tabela dinâmica -->
-            <div id="lista-igrejas-container" class="tabela-container">
-                <p class="carregando">⏳ Carregando lista de igrejas...</p>
+            <!-- Conteúdo da Aba 1: Lista de Igrejas -->
+            <div id="conteudo-tab-igrejas">
+                <!-- Tabela dinâmica -->
+                <div id="lista-igrejas-container" class="tabela-container">
+                    <p class="carregando">⏳ Carregando lista de igrejas...</p>
+                </div>
+
+                <!-- Container de paginação -->
+                <div id="paginacao-container" class="pagination-container no-print"></div>
+            </div>
+
+            <!-- Conteúdo da Aba 2: Gestão de Patrimônio -->
+            <div id="conteudo-tab-patrimonio" style="display: none;">
+                <!-- KPIs de Ativos -->
+                <div class="kpi-dashboard" id="kpi-patrimonio-dashboard">
+                    <!-- Cards de KPI específicos -->
+                </div>
+
+                <!-- Tabela de Consolidação -->
+                <div class="tabela-container">
+                    <table class="tabela-dinamica" id="tabela-consolidada-patrimonio">
+                        <thead>
+                            <!-- Dinâmico -->
+                        </thead>
+                        <tbody id="tbody-consolidado-patrimonio">
+                            <!-- Dinâmico -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 

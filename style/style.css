@@ -757,3 +757,117 @@ button:hover {
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   9. ESTILOS DO MODO OFFLINE E SINCRONIZAÇÃO
+   ========================================================================== */
+.offline-card {
+  text-align: center;
+  padding: 40px 30px !important;
+  max-width: 600px;
+  margin: 40px auto !important;
+  border: 2px solid #cbd5e1;
+  background-color: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.offline-icon-container {
+  font-size: 50px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.offline-icon {
+  color: #475569;
+}
+
+.offline-icon-warn {
+  color: #d97706;
+}
+
+.offline-titulo {
+  font-size: 24px;
+  color: #1e293b;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.offline-texto {
+  color: #475569;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 25px;
+}
+
+.offline-status {
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.offline-status.aviso {
+  background-color: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.offline-status.erro {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.offline-acoes {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.btn-sincronizar {
+  background-color: #10b981 !important; /* Fundo verde do auto-sinalizador */
+  color: #ffffff !important;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  padding: 14px 28px !important;
+  border: none !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: auto !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.btn-sincronizar:hover:not(:disabled) {
+  background-color: #059669 !important;
+  transform: translateY(-2px);
+}
+
+.btn-sincronizar:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spinner-rotation 1s ease-in-out infinite;
+}
+
+@keyframes spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
