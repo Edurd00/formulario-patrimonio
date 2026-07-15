@@ -403,6 +403,41 @@ function listarIgrejasBaseGeral() {
   return uniqueIgrejas;
 }
 
+function listarTodosPatrimonios() {
+  const destinos = obterDestinosConfigurados();
+  let todosPatrimonios = [];
+
+  destinos.forEach(function(destino) {
+    if (!destinoTemPlanilhaConfigurada(destino)) return;
+
+    try {
+      const planilha = abrirPlanilhaDestino(destino);
+      const aba = planilha.getSheetByName(destino.patrimonios);
+
+      if (!aba || aba.getLastRow() < 2) return;
+
+      const valores = aba.getRange(2, 1, aba.getLastRow() - 1, CONFIG.CABECALHOS.PATRIMONIOS.length).getValues();
+
+      const patrimonios = valores.map(function(linha) {
+        return {
+          totvs: linha[0],
+          patrimonio: linha[1],
+          possui: linha[2],
+          quantidade: linha[3],
+          conservacao: linha[4],
+          observacao: linha[5] || ""
+        };
+      });
+
+      todosPatrimonios = todosPatrimonios.concat(patrimonios);
+    } catch (e) {
+      Logger.log("Erro ao listar patrimonios do destino " + destino.chave + ": " + e);
+    }
+  });
+
+  return todosPatrimonios;
+}
+
 function formatarTabelaBanco(aba, colunas) {
   const ultimaLinha = aba.getLastRow();
 

@@ -17,6 +17,10 @@ function doGet(e) {
       return respostaSucesso("Lista de igrejas recuperada com sucesso.", listarIgrejasBaseGeral());
     }
 
+    if (acao === "listar_patrimonios" || acao === "listarpatrimonios") {
+      return respostaSucesso("Lista de patrimonios recuperada com sucesso.", listarTodosPatrimonios());
+    }
+
     if (acao === "obter_detalhes" || acao === "obterdetalhes") {
       const totvs = parametros.totvs || "";
       if (!totvs) {

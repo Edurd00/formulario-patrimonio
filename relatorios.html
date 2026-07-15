@@ -23,6 +23,40 @@
            PAINEL ADMINISTRATIVO - ESTILOS ESPECÍFICOS
         ================================================ */
 
+        /* ---- INTERFACE DE ABAS ---- */
+        .tabs-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 12px;
+        }
+
+        .tab-btn {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: auto;
+        }
+
+        .tab-btn:hover {
+            background-color: #e2e8f0;
+            color: #24348c;
+        }
+
+        .tab-btn.active {
+            background-color: #24348c;
+            color: #ffffff;
+            border-color: #24348c;
+            box-shadow: 0 4px 10px rgba(36, 52, 140, 0.15);
+        }
+
         /* ---- DASHBOARD DE KPIS ---- */
         .kpi-dashboard {
             display: grid;
@@ -382,6 +416,12 @@
 
             <div class="kpi-dashboard no-print" id="kpi-dashboard"></div>
 
+            <!-- Abas de Alternância (Tabs) -->
+            <div class="tabs-container no-print">
+                <button type="button" class="tab-btn active" id="tab-igrejas">⛪ Lista de Igrejas</button>
+                <button type="button" class="tab-btn" id="tab-patrimonio">📦 Gestão de Patrimônio</button>
+            </div>
+
             <!-- Barra de busca e filtros -->
             <div class="barra-busca-principal no-print" style="flex-direction: column; align-items: stretch; gap: 12px;">
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; width: 100%;">
@@ -409,13 +449,36 @@
                 </div>
             </div>
 
-            <!-- Tabela dinâmica -->
-            <div id="lista-igrejas-container" class="tabela-container">
-                <p class="carregando">⏳ Carregando lista de igrejas...</p>
+            <!-- Conteúdo da Aba 1: Lista de Igrejas -->
+            <div id="conteudo-tab-igrejas">
+                <!-- Tabela dinâmica -->
+                <div id="lista-igrejas-container" class="tabela-container">
+                    <p class="carregando">⏳ Carregando lista de igrejas...</p>
+                </div>
+
+                <!-- Container de paginação -->
+                <div id="paginacao-container" class="pagination-container no-print"></div>
             </div>
 
-            <!-- Container de paginação -->
-            <div id="paginacao-container" class="pagination-container no-print"></div>
+            <!-- Conteúdo da Aba 2: Gestão de Patrimônio -->
+            <div id="conteudo-tab-patrimonio" style="display: none;">
+                <!-- KPIs de Ativos -->
+                <div class="kpi-dashboard" id="kpi-patrimonio-dashboard">
+                    <!-- Cards de KPI específicos -->
+                </div>
+
+                <!-- Tabela de Consolidação -->
+                <div class="tabela-container">
+                    <table class="tabela-dinamica" id="tabela-consolidada-patrimonio">
+                        <thead>
+                            <!-- Dinâmico -->
+                        </thead>
+                        <tbody id="tbody-consolidado-patrimonio">
+                            <!-- Dinâmico -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </section>
 
         <footer class="footer">

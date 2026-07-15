@@ -398,12 +398,197 @@ function atualizarKpis(dadosFiltrados) {
   `;
 }
 
+/* =========================================
+   GESTÃO DE PATRIMÔNIO - ABAS E CONSOLIDAÇÃO
+========================================= */
+let todosPatrimonios = [];
+
+const MAPA_CATEGORIAS = {
+  // Mobiliário e Estrutura
+  "banco": "Mobiliário e Estrutura", "cadeira": "Mobiliário e Estrutura", "bebedourofiltro": "Mobiliário e Estrutura",
+  "armario": "Mobiliário e Estrutura", "mesa": "Mobiliário e Estrutura", "cofrebocalobo": "Mobiliário e Estrutura",
+  "pulpito": "Mobiliário e Estrutura", "bancos": "Mobiliário e Estrutura", "cadeiras": "Mobiliário e Estrutura",
+  "bebedouro ou filtro": "Mobiliário e Estrutura", "armário": "Mobiliário e Estrutura", "cofre boca de lobo": "Mobiliário e Estrutura",
+  "púlpito": "Mobiliário e Estrutura",
+
+  // Eletrônicos e Climatização
+  "ar": "Eletrônicos e Climatização", "ventilador": "Eletrônicos e Climatização", "computador": "Eletrônicos e Climatização",
+  "impressora": "Eletrônicos e Climatização", "projetor": "Eletrônicos e Climatização", "telaprojetor": "Eletrônicos e Climatização",
+  "telefonepatrimonio": "Eletrônicos e Climatização", "celular": "Eletrônicos e Climatização", "cameraseguranca": "Eletrônicos e Climatização",
+  "ar condicionado": "Eletrônicos e Climatização", "ventiladores": "Eletrônicos e Climatização", "tela de projetor": "Eletrônicos e Climatização",
+  "telefone": "Eletrônicos e Climatização", "câmera de segurança": "Eletrônicos e Climatização",
+
+  // Som e Instrumentos
+  "microfone": "Som e Instrumentos", "caixasom": "Som e Instrumentos", "mesasom": "Som e Instrumentos",
+  "violao": "Som e Instrumentos", "guitarra": "Som e Instrumentos", "bateria": "Som e Instrumentos",
+  "contrabaixo": "Som e Instrumentos", "teclado": "Som e Instrumentos", "caixas de som": "Som e Instrumentos",
+  "mesa de som": "Som e Instrumentos", "violão": "Som e Instrumentos",
+
+  // Cozinha e Segurança
+  "freezer": "Cozinha e Segurança", "geladeira": "Cozinha e Segurança", "fogao": "Cozinha e Segurança",
+  "botijao": "Cozinha e Segurança", "microondas": "Cozinha e Segurança", "extintor": "Cozinha e Segurança",
+  "fogão": "Cozinha e Segurança", "botijão": "Cozinha e Segurança", "micro-ondas": "Cozinha e Segurança"
+};
+
+/** Atualiza a nova interface consolidada de Gestão de Patrimônio */
+function atualizarGestaoPatrimonio(dadosFiltrados) {
+  const totvsFiltradosMap = {};
+  dadosFiltrados.forEach(igreja => {
+    totvsFiltradosMap[igreja.totvs] = igreja;
+  });
+
+  const patrimoniosFiltrados = todosPatrimonios.filter(p => {
+    return totvsFiltradosMap[p.totvs] !== undefined;
+  });
+
+  // KPIs de Ativos
+  let totalItens = 0;
+  let estadoCritico = 0;
+
+  patrimoniosFiltrados.forEach(p => {
+    const qtd = parseInt(p.quantidade, 10) || 0;
+    totalItens += qtd;
+
+    const conservacao = String(p.conservacao || "").toLowerCase().trim();
+    if (conservacao === "ruim") {
+      estadoCritico += qtd;
+    }
+  });
+
+  const totalTemplos = dadosFiltrados.length;
+  const mediaPorTemplo = totalTemplos > 0 ? (totalItens / totalTemplos).toFixed(1) : "0.0";
+
+  const containerKpis = document.getElementById("kpi-patrimonio-dashboard");
+  if (containerKpis) {
+    containerKpis.innerHTML = `
+      <div class="kpi-card" style="border-left-color: #10b981;">
+        <div class="kpi-info">
+          <span class="kpi-value">${totalItens}</span>
+          <span class="kpi-label">Total de Itens</span>
+        </div>
+        <i class="fa-solid fa-boxes-stacked kpi-icon" style="color: #10b981;"></i>
+      </div>
+      <div class="kpi-card" style="border-left-color: #ef4444;">
+        <div class="kpi-info">
+          <span class="kpi-value">${estadoCritico}</span>
+          <span class="kpi-label">Estado Crítico (Ruim)</span>
+        </div>
+        <i class="fa-solid fa-triangle-exclamation kpi-icon" style="color: #ef4444;"></i>
+      </div>
+      <div class="kpi-card" style="border-left-color: #f59e0b;">
+        <div class="kpi-info">
+          <span class="kpi-value">${mediaPorTemplo}</span>
+          <span class="kpi-label">Média p/ Templo</span>
+        </div>
+        <i class="fa-solid fa-calculator kpi-icon" style="color: #f59e0b;"></i>
+      </div>
+    `;
+  }
+
+  // Tabela de Consolidação
+  const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+  const regiaoFiltro = selectRegiao ? selectRegiao.value : "";
+
+  const tbody = document.getElementById("tbody-consolidado-patrimonio");
+  const thead = document.querySelector("#tabela-consolidada-patrimonio thead");
+  if (!tbody || !thead) return;
+
+  const rowLabel = regiaoFiltro ? "Igreja congregação" : "Região";
+  thead.innerHTML = `
+    <tr>
+      <th>${rowLabel}</th>
+      <th><i class="fa-solid fa-chair"></i> Mobiliário</th>
+      <th><i class="fa-solid fa-bolt"></i> Eletrônicos</th>
+      <th><i class="fa-solid fa-guitar"></i> Som & Instrumentos</th>
+      <th><i class="fa-solid fa-kitchen-set"></i> Cozinha & Seg.</th>
+      <th><i class="fa-solid fa-plus"></i> Adicionais</th>
+      <th>Total Geral</th>
+    </tr>
+  `;
+
+  const agregados = {};
+
+  patrimoniosFiltrados.forEach(p => {
+    const igreja = totvsFiltradosMap[p.totvs];
+    if (!igreja) return;
+
+    const rowKey = regiaoFiltro ? `${igreja.totvs} - ${igreja.dirigente || 'Igreja'}` : (igreja.regiao || "Outros");
+    const qtd = parseInt(p.quantidade, 10) || 0;
+
+    const nomeNormalizado = normalizar(p.patrimonio);
+    let cat = MAPA_CATEGORIAS[nomeNormalizado] || "Itens adicionais";
+
+    if (!agregados[rowKey]) {
+      agregados[rowKey] = {
+        "Mobiliário e Estrutura": 0,
+        "Eletrônicos e Climatização": 0,
+        "Som e Instrumentos": 0,
+        "Cozinha e Segurança": 0,
+        "Itens adicionais": 0,
+        "total": 0
+      };
+    }
+
+    agregados[rowKey][cat] += qtd;
+    agregados[rowKey]["total"] += qtd;
+  });
+
+  if (Object.keys(agregados).length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; color: #777; padding: 25px;">
+          Nenhum patrimônio cadastrado encontrado para os filtros aplicados.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  if (!regiaoFiltro) {
+    Object.keys(REGIOES).forEach(reg => {
+      if (!agregados[reg]) {
+        agregados[reg] = {
+          "Mobiliário e Estrutura": 0,
+          "Eletrônicos e Climatização": 0,
+          "Som e Instrumentos": 0,
+          "Cozinha e Segurança": 0,
+          "Itens adicionais": 0,
+          "total": 0
+        };
+      }
+    });
+  }
+
+  const chavesOrdenadas = Object.keys(agregados).sort();
+
+  let htmlRows = "";
+  chavesOrdenadas.forEach(key => {
+    const data = agregados[key];
+    htmlRows += `
+      <tr>
+        <td><strong>${key}</strong></td>
+        <td>${data["Mobiliário e Estrutura"]}</td>
+        <td>${data["Eletrônicos e Climatização"]}</td>
+        <td>${data["Som e Instrumentos"]}</td>
+        <td>${data["Cozinha e Segurança"]}</td>
+        <td>${data["Itens adicionais"]}</td>
+        <td style="color:#24348c; font-weight:700;">${data["total"]}</td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = htmlRows;
+}
+
 /** Renderiza a tabela de igrejas (filtrada ou completa) de forma paginada */
 function renderizarTabela(igrejas) {
   if (!listaIgrejasContainer) return;
 
   // Atualiza os KPIs dinamicamente
   atualizarKpis(igrejas);
+
+  // Atualiza a gestão de patrimônio dinamicamente
+  atualizarGestaoPatrimonio(igrejas);
 
   const contagem = document.getElementById("contagem-igrejas");
   if (contagem) {
@@ -667,6 +852,18 @@ async function listarIgrejas() {
       return;
     }
 
+    // Carrega também a lista consolidada de patrimônios
+    try {
+      const respPatrimonio = await fetch(`${URL}?acao=listar_patrimonios&_t=${new Date().getTime()}`);
+      const textPatrimonio = await respPatrimonio.text();
+      const resPatrimonio = JSON.parse(textPatrimonio);
+      if (resPatrimonio.sucesso) {
+        todosPatrimonios = resPatrimonio.dados || [];
+      }
+    } catch (errPatrimonio) {
+      console.error("Erro ao carregar lista de patrimônios:", errPatrimonio);
+    }
+
     // Popula o filtro de regiões e de estaduais e renderiza a tabela
     popularFiltroRegioes();
     atualizarFiltroEstaduais();
@@ -834,6 +1031,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnExportarCsv = document.getElementById("btn-exportar-csv");
   if (btnExportarCsv) {
     btnExportarCsv.addEventListener("click", exportarParaCSV);
+  }
+
+  // Alternância de Abas (Tabs)
+  const tabIgrejas = document.getElementById("tab-igrejas");
+  const tabPatrimonio = document.getElementById("tab-patrimonio");
+  const conteudoTabIgrejas = document.getElementById("conteudo-tab-igrejas");
+  const conteudoTabPatrimonio = document.getElementById("conteudo-tab-patrimonio");
+
+  if (tabIgrejas && tabPatrimonio && conteudoTabIgrejas && conteudoTabPatrimonio) {
+    tabIgrejas.addEventListener("click", () => {
+      tabIgrejas.classList.add("active");
+      tabPatrimonio.classList.remove("active");
+      conteudoTabIgrejas.style.display = "block";
+      conteudoTabPatrimonio.style.display = "none";
+    });
+
+    tabPatrimonio.addEventListener("click", () => {
+      tabPatrimonio.classList.add("active");
+      tabIgrejas.classList.remove("active");
+      conteudoTabIgrejas.style.display = "none";
+      conteudoTabPatrimonio.style.display = "block";
+      atualizarGestaoPatrimonio(dadosFiltrados);
+    });
   }
 
   // Carrega lista de igrejas
