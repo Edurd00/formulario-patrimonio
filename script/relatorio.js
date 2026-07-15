@@ -112,13 +112,13 @@ async function executarAcaoRelatorio(acao, botao, textoProcessando) {
   botao.innerText = textoProcessando;
   exibirMensagemRelatorio("Consultando o banco de dados...", "aviso");
   try {
-    const resposta = await fetch(URL, {
+    const response = await fetch(URL, {
       method: "POST",
       mode: "cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ acao, totvs: codigo })
     });
-    const textoResposta = await resposta.text();
+    const textoResposta = await response.text();
     let resultado;
     try { resultado = JSON.parse(textoResposta); }
     catch (parseError) {
@@ -130,7 +130,7 @@ async function executarAcaoRelatorio(acao, botao, textoProcessando) {
     if (resultado.dados && resultado.dados.url) window.open(resultado.dados.url, "_blank");
     if (resultado.dados && resultado.dados.pastaUrl) {
       exibirMensagemRelatorioComLink(
-        "PDF salvo na pasta " + resultado.dados.pasta + ".",
+        "PDF saved in folder " + resultado.dados.pasta + ".",
         "sucesso", "Abrir pasta no Drive", resultado.dados.pastaUrl
       );
     }
@@ -172,7 +172,7 @@ function normalizar(str) {
     .trim();
 }
 
-/** Converte string de data brasileira em objeto Date do JS */
+/** Converte string de data brasileira ou formato ISO em objeto Date do JS de forma robusta */
 function converterDataBr(dataStr) {
   if (!dataStr) return null;
 
@@ -277,6 +277,7 @@ function exportarParaCSV() {
 
   // Adiciona cada igreja filtrada
   igrejasFiltradas.forEach(igreja => {
+    if (!igreja) return;
     const dados = [
       igreja.totvs || "",
       igreja.regiao || "",
@@ -304,19 +305,19 @@ function exportarParaCSV() {
 
   // Cria o blob e faz o download do arquivo
   const blob = new Blob([conteudoCSV], { type: "text/csv;charset=utf-8;" });
-  const url = window.URL.createObjectURL(blob);
+  const urlBlob = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
 
   // Nome do arquivo com timestamp para evitar substituição
   const dataFormatada = new Date().toISOString().slice(0, 10);
-  link.setAttribute("href", url);
+  link.setAttribute("href", urlBlob);
   link.setAttribute("download", `relatorio_igrejas_${dataFormatada}.csv`);
   link.style.visibility = 'hidden';
 
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
+  window.URL.revokeObjectURL(urlBlob);
 }
 
 /** Atualiza o dashboard de KPIs dinamicamente com base nos dados filtrados */
@@ -324,13 +325,16 @@ function atualizarKpis(dadosFiltrados) {
   const container = document.getElementById("kpi-dashboard");
   if (!container) return;
 
+  // Proteção para evitar travamento se o array for indefinido ou nulo
+  const dadosSeguros = Array.isArray(dadosFiltrados) ? dadosFiltrados : [];
+
   // Métrica 1: Total de Igrejas
-  const totalIgrejas = dadosFiltrados.length;
+  const totalIgrejas = dadosSeguros.length;
 
   // Métrica 2: Estaduais Únicas
   const estaduaisUnicas = new Set();
-  dadosFiltrados.forEach(igreja => {
-    if (igreja.estadual) {
+  dadosSeguros.forEach(igreja => {
+    if (igreja && igreja.estadual) {
       estaduaisUnicas.add(igreja.estadual.trim());
     }
   });
@@ -346,11 +350,13 @@ function atualizarKpis(dadosFiltrados) {
 
   console.log("Debug KPI - Período de busca:", limiteSeteDias.toLocaleDateString('pt-BR'), "até", hoje.toLocaleDateString('pt-BR'));
 
-  const recentes = dadosFiltrados.filter((item, index) => {
-    const dataCrua = item.dataCadastro;
+  const recentes = dadosSeguros.filter((item, index) => {
+    if (!item) return false;
+    // Tenta obter a data utilizando todas as chaves possíveis para evitar conflitos de nomenclatura
+    const dataCrua = item.dataCadastro || item.data_cadastro || item.datacadastro || item["Data Cadastro"];
 
     if (index === 0) {
-      console.log("Debug KPI - Exemplo de dado bruto recebido da planilha:", item);
+      console.log("Debug KPI - Dado mapeado com sucesso:", item);
       console.log("Debug KPI - Campo de data detectado:", dataCrua);
     }
 
@@ -367,8 +373,8 @@ function atualizarKpis(dadosFiltrados) {
 
   // Métrica 4: Região com Mais Templos
   const contagemRegiao = {};
-  dadosFiltrados.forEach(igreja => {
-    if (igreja.regiao) {
+  dadosSeguros.forEach(igreja => {
+    if (igreja && igreja.regiao) {
       const reg = igreja.regiao.trim();
       contagemRegiao[reg] = (contagemRegiao[reg] || 0) + 1;
     }
@@ -651,6 +657,7 @@ function renderizarTabela(igrejas) {
   `;
 
   dadosExibidos.forEach(igreja => {
+    if (!igreja) return;
     html += `
       <tr>
         <td><strong>${igreja.totvs || '-'}</strong></td>
@@ -835,8 +842,8 @@ async function listarIgrejas() {
     </p>`;
 
   try {
-    const resposta = await fetch(`${URL}?acao=listar_igrejas&_t=${new Date().getTime()}`);
-    const textoResposta = await resposta.text();
+    const response = await fetch(`${URL}?acao=listar_igrejas&_t=${new Date().getTime()}`);
+    const textoResposta = await response.text();
     let resultado;
     try { resultado = JSON.parse(textoResposta); }
     catch (parseError) {
@@ -936,8 +943,8 @@ async function exibirDetalhesIgreja(totvs, botao) {
   if (botao) { botao.disabled = true; botao.innerHTML = "⏳ Buscando..."; }
 
   try {
-    const resposta = await fetch(`${URL}?acao=obter_detalhes&totvs=${totvs}&_t=${new Date().getTime()}`);
-    const textoResposta = await resposta.text();
+    const response = await fetch(`${URL}?acao=obter_detalhes&totvs=${totvs}&_t=${new Date().getTime()}`);
+    const textoResposta = await response.text();
     let resultado;
     try { resultado = JSON.parse(textoResposta); }
     catch (parseError) {
@@ -1012,13 +1019,13 @@ async function gerarPdfTabela(totvs, botao) {
   botao.disabled = true;
   botao.innerText = "⏳ Gerando...";
   try {
-    const resposta = await fetch(URL, {
+    const response = await fetch(URL, {
       method: "POST",
       mode: "cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ acao: "exportarPdf", totvs })
     });
-    const resultado = JSON.parse(await resposta.text());
+    const resultado = JSON.parse(await response.text());
     if (resultado.sucesso && resultado.dados && resultado.dados.url) {
       window.open(resultado.dados.url, "_blank");
     } else {
