@@ -175,17 +175,36 @@ function normalizar(str) {
 /** Converte string de data brasileira em objeto Date do JS */
 function converterDataBr(dataStr) {
   if (!dataStr) return null;
-  // Trata formatos com data e hora ou apenas data, limpando espaços extras
-  const apenasData = String(dataStr).trim().split(" ")[0];
-  const partes = apenasData.split("/");
-  if (partes.length !== 3) return null;
 
-  const dia = parseInt(partes[0], 10);
-  const mes = parseInt(partes[1], 10) - 1; // Mês no JS começa em 0
-  const ano = parseInt(partes[2], 10);
+  const strLimpa = String(dataStr).trim();
 
-  // Criamos o objeto de data definindo a hora para o início do dia (00:00:00) para evitar problemas de fuso horário
-  return new Date(ano, mes, dia, 0, 0, 0);
+  // Se for formato ISO (contém hífen, ex: 2026-07-15...)
+  if (strLimpa.includes("-")) {
+    const apenasDataIso = strLimpa.split("T")[0];
+    const partesIso = apenasDataIso.split("-");
+    if (partesIso.length === 3) {
+      return new Date(
+        parseInt(partesIso[0], 10),
+        parseInt(partesIso[1], 10) - 1,
+        parseInt(partesIso[2], 10),
+        0, 0, 0
+      );
+    }
+  }
+
+  // Se for formato Brasileiro (contém barra, ex: 15/07/2026...)
+  const apenasDataBr = strLimpa.split(" ")[0];
+  const partesBr = apenasDataBr.split("/");
+  if (partesBr.length === 3) {
+    return new Date(
+      parseInt(partesBr[2], 10),
+      parseInt(partesBr[1], 10) - 1,
+      parseInt(partesBr[0], 10),
+      0, 0, 0
+    );
+  }
+
+  return null;
 }
 
 /** Popula o select de regiões no filtro de igrejas com todas as regiões do projeto */
@@ -433,12 +452,19 @@ const MAPA_CATEGORIAS = {
 /** Atualiza a nova interface consolidada de Gestão de Patrimônio */
 function atualizarGestaoPatrimonio(dadosFiltrados) {
   const totvsFiltradosMap = {};
+
+  // Proteção contra dados vazios passados para a função
+  if (!Array.isArray(dadosFiltrados)) return;
+
   dadosFiltrados.forEach(igreja => {
-    totvsFiltradosMap[igreja.totvs] = igreja;
+    if (igreja && igreja.totvs) {
+      totvsFiltradosMap[igreja.totvs] = igreja;
+    }
   });
 
+  // Proteção contra itens de patrimônio nulos ou inacabados no banco
   const patrimoniosFiltrados = todosPatrimonios.filter(p => {
-    return totvsFiltradosMap[p.totvs] !== undefined;
+    return p && p.totvs && totvsFiltradosMap[p.totvs] !== undefined;
   });
 
   // KPIs de Ativos
@@ -780,9 +806,12 @@ function aplicarFiltros() {
   paginaAtual = 1; // Reseta para a página 1 ao filtrar
 
   const filtradas = todasIgrejas.filter(igreja => {
+    // Evita crash se o registro estiver vazio ou nulo na planilha
+    if (!igreja) return false;
+
     const matchBusca = !termoBusca || [
       igreja.totvs, igreja.regiao, igreja.estadual, igreja.dirigente, igreja.endereco
-    ].some(campo => normalizar(campo).includes(termoBusca));
+    ].some(campo => campo && normalizar(campo).includes(termoBusca));
 
     const matchRegiao = !regiaoSelecionada || normalizar(igreja.regiao) === regiaoSelecionada;
 
