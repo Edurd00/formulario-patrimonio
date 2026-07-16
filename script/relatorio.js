@@ -1007,20 +1007,41 @@ function rolarParaTabela() {
 // A. Função de trava visual de componentes (RBAC)
 function verificarControleAcessoRBAC() {
   const perfil = sessionStorage.getItem("usuarioPerfil") || "Admin";
-  const regiaoDesignada = sessionStorage.getItem("usuarioRegiao") || "Todas";
+
+  // Lê o array de regiões armazenado (ou assume 'Todas' como padrão)
+  let regioesDesignadas = [];
+  try {
+    regioesDesignadas = JSON.parse(sessionStorage.getItem("usuarioRegioes") || "[]");
+  } catch(e) {
+    regioesDesignadas = ["Todas"];
+  }
+
   const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+  if (!selectRegiao) return;
 
-  if (perfil === "Supervisor" && regiaoDesignada && regiaoDesignada !== "Todas") {
-    console.log(`[RBAC] Trava ativada para o campo: ${regiaoDesignada}`);
+  // Se for supervisor e não tiver acesso a 'Todas', limpamos as opções do menu que não pertencem a ele
+  if (perfil === "Supervisor" && !regioesDesignadas.includes("Todas")) {
+    console.log("[RBAC] Supervisor multi-região detectado. Filtrando permissões visíveis...");
 
-    if (selectRegiao) {
-      selectRegiao.value = regiaoDesignada; // Força a região na tela
-      selectRegiao.disabled = true;        // Bloqueia o campo visualmente
+    // Captura as opções atuais do select de regiões
+    const opcoes = Array.from(selectRegiao.options);
 
-      if (typeof atualizarFiltroEstaduais === "function") {
-        atualizarFiltroEstaduais();
+    // Reseta o select mantendo apenas a opção padrão
+    selectRegiao.innerHTML = '';
+
+    opcoes.forEach(opt => {
+      // Se for a opção vazia "Todas as Regiões" ou se o supervisor tiver autorização para a região, adiciona de volta
+      if (opt.value === "" || regioesDesignadas.includes(opt.value)) {
+        selectRegiao.appendChild(opt);
       }
+    });
+
+    // Força o select a se posicionar na primeira região válida dele se estiver vazio
+    if (selectRegiao.value === "" && regioesDesignadas.length > 0) {
+      selectRegiao.value = regioesDesignadas[0];
+      if (typeof atualizarFiltroEstaduais === "function") atualizarFiltroEstaduais();
     }
+
     // Oculta o botão de limpar filtros para supervisores para evitar que limpe a própria trava
     const btnLimpar = document.getElementById("btn-limpar-filtros");
     if (btnLimpar) btnLimpar.style.display = "none";
@@ -1039,11 +1060,20 @@ function aplicarFiltros() {
 
   // B. Blindagem invisível no motor de filtros (aplicarFiltros)
   const perfil = sessionStorage.getItem("usuarioPerfil") || "Admin";
-  const regiaoDesignada = sessionStorage.getItem("usuarioRegiao") || "Todas";
+  let regioesDesignadas = [];
+  try { regioesDesignadas = JSON.parse(sessionStorage.getItem("usuarioRegioes") || "[]"); } catch(e) { regioesDesignadas = ["Todas"]; }
+
   let regiaoSelecionada = normalizar(selectRegiao ? selectRegiao.value : "");
 
-  if (perfil === "Supervisor" && regiaoDesignada && regiaoDesignada !== "Todas") {
-    regiaoSelecionada = normalizar(regiaoDesignada);
+  // Se for supervisor e tentar forçar uma região não autorizada via console do navegador (F12)
+  if (perfil === "Supervisor" && !regioesDesignadas.includes("Todas") && regiaoSelecionada !== "") {
+    const regioesNormalizadas = regioesDesignadas.map(r => normalizar(r));
+
+    // Se a região que ele escolheu NÃO está na lista permitida dele, barra a execução forçando a primeira válida
+    if (!regioesNormalizadas.includes(regiaoSelecionada)) {
+      regiaoSelecionada = normalizar(regioesDesignadas[0]);
+      if (selectRegiao) selectRegiao.value = regioesDesignadas[0];
+    }
   }
 
   const termoBusca = normalizar(inputFiltro ? inputFiltro.value : "");
@@ -1064,7 +1094,17 @@ function aplicarFiltros() {
         .some(campo => campo && normalizar(campo).includes(termo));
     });
 
-    const matchRegiao = !regiaoSelecionada || normalizar(igreja.regiao) === regiaoSelecionada;
+    let matchRegiao = false;
+    if (regiaoSelecionada) {
+      matchRegiao = normalizar(igreja.regiao) === regiaoSelecionada;
+    } else {
+      if (perfil === "Supervisor" && !regioesDesignadas.includes("Todas")) {
+        const regioesNormalizadas = regioesDesignadas.map(r => normalizar(r));
+        matchRegiao = regioesNormalizadas.includes(normalizar(igreja.regiao || ""));
+      } else {
+        matchRegiao = true;
+      }
+    }
 
     const matchEstadual = !estadualSelecionada || normalizar(igreja.estadual) === estadualSelecionada;
 

@@ -100,14 +100,16 @@
         const CREDENCIAIS_ACESSO = {
             "gestaodedados@ipda.com": "@admgd2026",
             "admin": "@admgd2026",
-            "supervisor.mg": "@admgd2026"
+            "supervisor.mg": "@admgd2026",
+            "supervisor.eixo": "@admgd2026"
         };
 
-        // Objeto de mapeamento RBAC para controle de acesso por perfil e região
+        // Objeto de mapeamento RBAC para controle de acesso por perfil e regiões (multi-regiões)
         const USUARIOS_RBAC = {
-            "gestaodedados@ipda.com": { perfil: "Admin", regiao: "Todas" },
-            "admin": { perfil: "Admin", regiao: "Todas" },
-            "supervisor.mg": { perfil: "Supervisor", regiao: "Minas Gerais" }
+            "gestaodedados@ipda.com": { perfil: "Admin", regioes: ["Todas"] },
+            "admin": { perfil: "Admin", regioes: ["Todas"] },
+            "supervisor.mg": { perfil: "Supervisor", regioes: ["Minas Gerais"] },
+            "supervisor.eixo": { perfil: "Supervisor", regioes: ["Norte", "Nordeste"] }
         };
 
         const form = document.getElementById("login-form");
@@ -131,9 +133,9 @@
             if (CREDENCIAIS_ACESSO[usernameVal] && passwordVal === CREDENCIAIS_ACESSO[usernameVal]) {
                 sessionStorage.setItem("usuarioLogado", "true");
 
-                const rbac = USUARIOS_RBAC[usernameVal] || { perfil: "Admin", regiao: "Todas" };
+                const rbac = USUARIOS_RBAC[usernameVal] || { perfil: "Admin", regioes: ["Todas"] };
                 sessionStorage.setItem("usuarioPerfil", rbac.perfil);
-                sessionStorage.setItem("usuarioRegiao", rbac.regiao);
+                sessionStorage.setItem("usuarioRegioes", JSON.stringify(rbac.regioes));
 
                 // Redireciona para os relatórios
                 window.location.href = "relatorios.html";
