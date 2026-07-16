@@ -1,0 +1,15 @@
+127.0.0.1 - - [16/Jul/2026 15:28:36] "HEAD /login.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:24] "GET /login.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:24] "GET /style/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:24] "GET /img/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:26] "GET /relatorios.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:26] "GET /style/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:26] "GET /img/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:26] "GET /script/relatorio.js HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:57] "GET /login.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:57] "GET /style/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:57] "GET /img/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:58] "GET /relatorios.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:58] "GET /img/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:58] "GET /script/relatorio.js HTTP/1.1" 200 -
+127.0.0.1 - - [16/Jul/2026 15:29:58] "GET /style/style.css HTTP/1.1" 200 -

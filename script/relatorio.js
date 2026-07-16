@@ -642,7 +642,7 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
   const thead = document.querySelector("#tabela-consolidada-patrimonio thead");
   if (!tbody || !thead) return;
 
-  const rowLabel = regiaoFiltro ? "Igreja congregação" : "Região";
+  const rowLabel = regiaoFiltro ? "Igreja congregação" : "Estadual / Campo";
   thead.innerHTML = `
     <tr>
       <th>${rowLabel}</th>
@@ -658,20 +658,22 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
   // --- INÍCIO DA CORREÇÃO CONTRA DUPLICIDADE ---
   const agregados = {};
 
-  // 1. Inicializa todas as regiões cadastradas em REGIOES no formato CAIXA ALTA padronizado
+  // 1. Inicializa todas as Estaduais cadastradas em REGIOES no formato CAIXA ALTA padronizado
   if (!regiaoFiltro) {
-    Object.keys(REGIOES).forEach(reg => {
-      // Normaliza para remover acentos e converte para CAIXA ALTA (padrão do banco)
-      const regPadronizada = normalizar(reg).toUpperCase();
+    Object.values(REGIOES).forEach(estaduaisList => {
+      estaduaisList.forEach(est => {
+        // Normaliza para remover acentos e converte para CAIXA ALTA (padrão do banco)
+        const estPadronizada = normalizar(est).toUpperCase();
 
-      agregados[regPadronizada] = {
-        "Mobiliário e Estrutura": 0,
-        "Eletrônicos e Climatização": 0,
-        "Som e Instrumentos": 0,
-        "Cozinha e Segurança": 0,
-        "Itens adicionais": 0,
-        "total": 0
-      };
+        agregados[estPadronizada] = {
+          "Mobiliário e Estrutura": 0,
+          "Eletrônicos e Climatização": 0,
+          "Som e Instrumentos": 0,
+          "Cozinha e Segurança": 0,
+          "Itens adicionais": 0,
+          "total": 0
+        };
+      });
     });
   }
 
@@ -680,10 +682,10 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     const igreja = totvsFiltradosMap[p.totvs];
     if (!igreja) return;
 
-    // Se houver filtro de região, exibe o detalhe da igreja. Caso contrário, exibe a região unificada em CAIXA ALTA
+    // Se houver filtro de região, exibe o detalhe da igreja. Caso contrário, exibe a estadual unificada em CAIXA ALTA
     const rowKey = regiaoFiltro
       ? `${igreja.totvs} - ${igreja.dirigente || 'Igreja'}`
-      : normalizar(igreja.regiao || "Outros").toUpperCase();
+      : normalizar(igreja.estadual || "Outros").toUpperCase();
 
     const qtd = parseInt(p.quantidade || p.Quantidade, 10) || 0;
 
