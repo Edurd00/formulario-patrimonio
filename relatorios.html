@@ -11,6 +11,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Administrativo - Patrimônios IPDA</title>
+    <!-- Importação do Chart.js para gráficos de distribuição de ativos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <meta name="description" content="Painel administrativo para visualização e geração de relatórios patrimoniais das igrejas IPDA por região.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -232,19 +234,81 @@
             transition: background-color 0.2s;
         }
 
-        /* ---- IMPRESSÃO / PDF ---- */
+        /* ---- IMPRESSÃO / PDF ALTAMENTE OTIMIZADA ---- */
         @media print {
-            .no-print { display: none !important; }
-            .print-header { display: flex !important; align-items: center; gap: 20px; margin-bottom: 24px; border-bottom: 3px solid #24348c; padding-bottom: 16px; }
-            .print-header img { width: 100px; }
-            .print-header div { flex: 1; }
-            .container { width: 100% !important; max-width: 100% !important; padding: 15px !important; box-shadow: none !important; border-radius: 0 !important; }
-            .card { border: 1px solid #ddd !important; box-shadow: none !important; page-break-inside: avoid; }
-            .tabela-dinamica th { background-color: #24348c !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .tabela-dinamica td, .tabela-dinamica th { font-size: 12px !important; padding: 8px 10px !important; }
-            .tabela-container { overflow: visible !important; }
-            #painel-geracao { display: none !important; }
-            footer { display: none !important; }
+            /* 1. Oculta todos os elementos de controle e navegação */
+            .no-print,
+            .barra-busca-principal,
+            .tabs-container,
+            .tab-btn,
+            button,
+            .botoes,
+            #painel-geracao,
+            .footer,
+            footer {
+                display: none !important;
+            }
+
+            /* 2. Garante que o cabeçalho timbrado exclusivo de impressão apareça */
+            .print-header {
+                display: flex !important;
+                align-items: center;
+                gap: 25px;
+                margin-bottom: 30px;
+                border-bottom: 3px solid #24348c;
+                padding-bottom: 20px;
+            }
+            .print-header img {
+                width: 110px;
+                height: auto;
+            }
+
+            /* 3. Força o container principal a ocupar 100% da folha sem bordas arredondadas ou sombras */
+            .container,
+            .container-relatorio {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: transparent !important;
+            }
+
+            /* 4. Remove fundos e sombras de cartões para economizar tinta e manter o contraste */
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                background: transparent !important;
+                page-break-inside: avoid; /* Impede que um card seja cortado ao meio entre duas páginas */
+            }
+
+            /* 5. Otimização estética e contraste da tabela para impressão */
+            .tabela-dinamica {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin-top: 15px !important;
+            }
+            .tabela-dinamica th {
+                background-color: #24348c !important;
+                color: #ffffff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                font-size: 11px !important;
+                padding: 8px 10px !important;
+            }
+            .tabela-dinamica td {
+                font-size: 11px !important;
+                padding: 6px 8px !important;
+                border-bottom: 1px solid #ddd !important;
+            }
+
+            /* 6. Configurações físicas da página (Margens da folha) */
+            @page {
+                size: A4 portrait;
+                margin: 15mm 15mm 15mm 15mm;
+            }
         }
 
         .print-header { display: none; }
@@ -295,6 +359,51 @@
             opacity: 0.5;
             cursor: not-allowed;
             background-color: #f4f6f9;
+        }
+
+        /* Linha de detalhe oculta por padrão */
+        .linha-detalhe-accordion {
+            background-color: #f8fafc !important;
+            transition: all 0.3s ease;
+        }
+
+        .tabela-detalhe-interna {
+            width: 100%;
+            margin: 10px 0;
+            border-collapse: collapse;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .tabela-detalhe-interna th {
+            background-color: #475569 !important; /* Cinza escuro elegante */
+            color: #ffffff !important;
+            font-size: 11px !important;
+            padding: 8px 12px !important;
+        }
+
+        .tabela-detalhe-interna td {
+            font-size: 12px !important;
+            padding: 8px 12px !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        /* Efeito de rotação no ícone de seta */
+        .seta-accordion {
+            transition: transform 0.2s ease;
+            color: #24348c;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        .seta-accordion.aberta {
+            transform: rotate(90deg);
+        }
+
+        .linha-clicavel {
+            cursor: pointer;
         }
     </style>
 </head>
@@ -474,9 +583,40 @@
 
             <!-- Conteúdo da Aba 2: Gestão de Patrimônio -->
             <div id="conteudo-tab-patrimonio" style="display: none;">
+                <!-- Filtro de Auditoria de Compras -->
+                <div class="no-print" style="background: #fffcf5; border: 1.5px solid #ffeeba; border-radius: 12px; padding: 15px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-toolbox" style="color: #d97706; font-size: 20px;"></i>
+                        <div>
+                            <h4 style="margin: 0; color: #b78103; font-size: 15px;">Filtro de Auditoria de Compras</h4>
+                            <p style="margin: 2px 0 0; color: #64748b; font-size: 12px;">Foque o painel apenas em equipamentos danificados que necessitam de substituição.</p>
+                        </div>
+                    </div>
+                    <label class="switch-auditoria" style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; color: #24348c; font-size: 14px;">
+                        <input type="checkbox" id="filtro-estado-critico" style="width: 18px; height: 18px; cursor: pointer;">
+                        <span>Mostrar apenas itens em estado Ruim</span>
+                    </label>
+                </div>
+
                 <!-- KPIs de Ativos -->
                 <div class="kpi-dashboard" id="kpi-patrimonio-dashboard">
                     <!-- Cards de KPI específicos -->
+                </div>
+
+                <!-- Gráficos de Distribuição de Ativos (Visão Executiva) -->
+                <div class="no-print" style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px;">
+                    <div class="card" style="flex: 1; min-width: 300px; padding: 20px; border-radius: 12px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                        <h3 style="color: #24348c; font-size: 16px; margin-bottom: 15px; border-left: 4px solid #24348c; padding-left: 10px;">Distribuição por Categorias</h3>
+                        <div style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="chartCategorias"></canvas>
+                        </div>
+                    </div>
+                    <div class="card" style="flex: 1; min-width: 300px; padding: 20px; border-radius: 12px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                        <h3 style="color: #24348c; font-size: 16px; margin-bottom: 15px; border-left: 4px solid #24348c; padding-left: 10px;">Estado de Conservação</h3>
+                        <div style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="chartConservacao"></canvas>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Tabela de Consolidação -->

@@ -4,6 +4,12 @@
 const URL = "https://script.google.com/macros/s/AKfycbyA_GPEXPKow6kQF25MoB9etleYbOGF17dRdbSSHXi634LzB_rsT9KGeumrhBGWkWQRTA/exec";
 
 /* =========================================
+   INSTÂNCIAS GLOBAIS DE GRÁFICOS (CHART.JS)
+========================================= */
+let instanciaChartCategorias = null;
+let instanciaChartConservacao = null;
+
+/* =========================================
    REGIÕES DO PROJETO (espelhando script.js)
 ========================================= */
 const REGIOES = {
@@ -430,6 +436,97 @@ function atualizarKpis(dadosFiltrados) {
 let todosPatrimonios = [];
 let isBackendOutdated = false;
 
+/** Renderiza os Gráficos de Distribuição de Ativos (Visão Executiva) via Chart.js */
+function renderizarGraficosPatrimonio(patrimoniosFiltrados) {
+  // A. Processamento para Categorias
+  const contagemCategorias = {
+    "Mobiliário": 0,
+    "Eletrônicos": 0,
+    "Som & Instrumentos": 0,
+    "Cozinha & Seg.": 0,
+    "Adicionais": 0
+  };
+
+  // B. Processamento para Conservação
+  const contagemConservacao = {
+    "Bom": 0,
+    "Regular": 0,
+    "Ruim": 0
+  };
+
+  patrimoniosFiltrados.forEach(p => {
+    const qtd = parseInt(p.quantidade || p.Quantidade, 10) || 0;
+
+    // Mapeamento de categorias
+    const nomeNormalizado = normalizar(p.patrimonio || p.Patrimonio);
+    let cat = MAPA_CATEGORIAS[nomeNormalizado] || "Itens adicionais";
+
+    if (cat === "Mobiliário e Estrutura") contagemCategorias["Mobiliário"] += qtd;
+    else if (cat === "Eletrônicos e Climatização") contagemCategorias["Eletrônicos"] += qtd;
+    else if (cat === "Som e Instrumentos") contagemCategorias["Som & Instrumentos"] += qtd;
+    else if (cat === "Cozinha e Segurança") contagemCategorias["Cozinha & Seg."] += qtd;
+    else contagemCategorias["Adicionais"] += qtd;
+
+    // Mapeamento de conservação
+    let estado = String(p.conservacao || p.Conservacao || "").trim().toLowerCase();
+    if (estado === "bom") contagemConservacao["Bom"] += qtd;
+    else if (estado === "regular") contagemConservacao["Regular"] += qtd;
+    else if (estado === "ruim") contagemConservacao["Ruim"] += qtd;
+  });
+
+  // C. Destruir instâncias antigas antes de recriar (para evitar sobreposição de dados)
+  if (instanciaChartCategorias) instanciaChartCategorias.destroy();
+  if (instanciaChartConservacao) instanciaChartConservacao.destroy();
+
+  // D. Criar Gráfico 1: Categorias (Doughnut Chart)
+  const ctxCat = document.getElementById('chartCategorias').getContext('2d');
+  instanciaChartCategorias = new Chart(ctxCat, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(contagemCategorias),
+      datasets: [{
+        data: Object.values(contagemCategorias),
+        backgroundColor: ['#24348c', '#3b82f6', '#10b981', '#f59e0b', '#64748b'],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { font: { family: 'Poppins', size: 11 } } }
+      }
+    }
+  });
+
+  // E. Criar Gráfico 2: Conservação (Bar Chart Horizontal)
+  const ctxCons = document.getElementById('chartConservacao').getContext('2d');
+  instanciaChartConservacao = new Chart(ctxCons, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(contagemConservacao),
+      datasets: [{
+        label: 'Quantidade',
+        data: Object.values(contagemConservacao),
+        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
 const MAPA_CATEGORIAS = {
   // Mobiliário e Estrutura
   "banco": "Mobiliário e Estrutura", "cadeira": "Mobiliário e Estrutura", "bebedourofiltro": "Mobiliário e Estrutura",
@@ -473,9 +570,24 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
   // GARGALO CORRIGIDO: Garante que tratamos todosPatrimonios como array válido
   const arrayPatrimonios = Array.isArray(todosPatrimonios) ? todosPatrimonios : [];
 
+  const checkboxCritico = document.getElementById("filtro-estado-critico");
+  const apenasCriticos = checkboxCritico ? checkboxCritico.checked : false;
+
   const patrimoniosFiltrados = arrayPatrimonios.filter(p => {
-    return p && p.totvs && totvsFiltradosMap[p.totvs] !== undefined;
+    const pertenceIgrejaFiltrada = p && p.totvs && totvsFiltradosMap[p.totvs] !== undefined;
+    if (!pertenceIgrejaFiltrada) return false;
+
+    // Se o filtro estiver ativo, passa apenas o que for "ruim"
+    if (apenasCriticos) {
+      const conservacao = String(p.conservacao || p.Conservacao || "").toLowerCase().trim();
+      return conservacao === "ruim";
+    }
+
+    return true;
   });
+
+  // Renderizar gráficos de distribuição de ativos
+  renderizarGraficosPatrimonio(patrimoniosFiltrados);
 
   // KPIs de Ativos
   let totalItens = 0;
@@ -615,29 +727,90 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     return;
   }
 
-  // 3. Renderiza as chaves sem duplicidades
+  // 3. Renderiza as chaves sem duplicidades (com efeito Accordion opcional se regiaoFiltro estiver ativo)
   const chavesOrdenadas = Object.keys(agregados).sort();
 
   let htmlRows = "";
   chavesOrdenadas.forEach(key => {
     const data = agregados[key];
 
-    // Opcional: Se não houver filtro por região, removemos as linhas que continuaram zeradas após consolidação (se houver alguma região estática não utilizada)
+    // Remove linhas zeradas se não houver filtro de região
     if (!regiaoFiltro && data["total"] === 0) {
       return;
     }
 
-    htmlRows += `
-      <tr>
-        <td><strong>${key}</strong></td>
-        <td>${data["Mobiliário e Estrutura"]}</td>
-        <td>${data["Eletrônicos e Climatização"]}</td>
-        <td>${data["Som e Instrumentos"]}</td>
-        <td>${data["Cozinha e Segurança"]}</td>
-        <td>${data["Itens adicionais"]}</td>
-        <td style="color:#24348c; font-weight:700;">${data["total"]}</td>
-      </tr>
-    `;
+    // Se estivermos vendo as igrejas congregações individuais, habilitamos o Accordion
+    if (regiaoFiltro) {
+      // Extrai o código TOTVS a partir da chave (ex: "17689 - MARIA VARDEILEI" -> "17689")
+      const totvsIgreja = key.split(" - ")[0].trim();
+
+      // Busca todos os patrimônios individuais desta igreja específica
+      const itensDaIgreja = patrimoniosFiltrados.filter(p => p && p.totvs == totvsIgreja);
+
+      // Cria a sub-tabela interna do Accordion
+      let subTabelaHtml = `
+        <table class="tabela-detalhe-interna">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th style="text-align: center;">Qtd</th>
+              <th style="text-align: center;">Estado</th>
+              <th>Observações</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      itensDaIgreja.forEach(item => {
+        const estadoClass = String(item.conservacao || "").toLowerCase().trim();
+        subTabelaHtml += `
+          <tr>
+            <td><strong>${item.patrimonio || "-"}</strong></td>
+            <td style="text-align: center;">${item.quantidade || 0}</td>
+            <td style="text-align: center;">
+              <span class="status-estado estado-${estadoClass}">${item.conservacao || "-"}</span>
+            </td>
+            <td>${item.observacao || "-"}</td>
+          </tr>
+        `;
+      });
+
+      subTabelaHtml += `</tbody></table>`;
+
+      // Linha Principal com a seta e Linha de Detalhe oculta
+      htmlRows += `
+        <tr class="linha-clicavel" onclick="toggleAccordionRow('${totvsIgreja}')">
+          <td>
+            <i class="fa-solid fa-chevron-right seta-accordion" id="seta-${totvsIgreja}"></i>
+            <strong>${key}</strong>
+          </td>
+          <td>${data["Mobiliário e Estrutura"]}</td>
+          <td>${data["Eletrônicos e Climatização"]}</td>
+          <td>${data["Som e Instrumentos"]}</td>
+          <td>${data["Cozinha e Segurança"]}</td>
+          <td>${data["Itens adicionais"]}</td>
+          <td style="color:#24348c; font-weight:700;">${data["total"]}</td>
+        </tr>
+        <tr class="linha-detalhe-accordion" id="detalhe-${totvsIgreja}" style="display: none;">
+          <td colspan="7" style="padding: 10px 25px;">
+            ${subTabelaHtml}
+          </td>
+        </tr>
+      `;
+    } else {
+      // Linha normal para visualização de Regiões Consolidadas (sem Accordion)
+      htmlRows += `
+        <tr>
+          <td><strong>${key}</strong></td>
+          <td>${data["Mobiliário e Estrutura"]}</td>
+          <td>${data["Eletrônicos e Climatização"]}</td>
+          <td>${data["Som e Instrumentos"]}</td>
+          <td>${data["Cozinha e Segurança"]}</td>
+          <td>${data["Itens adicionais"]}</td>
+          <td style="color:#24348c; font-weight:700;">${data["total"]}</td>
+        </tr>
+      `;
+    }
   });
 
   tbody.innerHTML = htmlRows;
@@ -829,7 +1002,6 @@ function rolarParaTabela() {
   }
 }
 
-/** Aplica os filtros de busca, região e estadual sobre todasIgrejas */
 function aplicarFiltros() {
   const termoBusca = normalizar(
     (document.getElementById("filtro-igrejas") || {}).value || ""
@@ -843,8 +1015,8 @@ function aplicarFiltros() {
 
   paginaAtual = 1; // Reseta para a página 1 ao filtrar
 
-  const filtradas = todasIgrejas.filter(igreja => {
-    // Evita crash se o registro estiver vazio ou nulo na planilha
+  // Passo 1: Filtrar os dados brutos
+  let filtradas = todasIgrejas.filter(igreja => {
     if (!igreja) return false;
 
     const matchBusca = !termoBusca || [
@@ -857,6 +1029,35 @@ function aplicarFiltros() {
 
     return matchBusca && matchRegiao && matchEstadual;
   });
+
+  // Passo 2: Ordenação inteligente avançada
+  if (termoBusca || regiaoSelecionada || estadualSelecionada) {
+    filtradas.sort((a, b) => {
+      // Função auxiliar para verificar se a igreja é a Sede/Matriz da sua própria estadual
+      const verificarSeEhSede = (igreja) => {
+        const totvsStr = String(igreja.totvs || "").trim();
+        const estadualStr = String(igreja.estadual || "");
+
+        // Se o TOTVS dela estiver mencionado no nome da Estadual (ex: "(T 13753)"), ela é a Sede!
+        return estadualStr.includes(`(T ${totvsStr})`) || estadualStr.includes(`(T${totvsStr})`);
+      };
+
+      const ehSedeA = verificarSeEhSede(a);
+      const ehSedeB = verificarSeEhSede(b);
+
+      // Critério 1: Sede sempre vai para o topo absoluto
+      if (ehSedeA && !ehSedeB) return -1;
+      if (!ehSedeA && ehSedeB) return 1;
+
+      // Critério 2: Se nenhuma for sede ou se ambas forem, ordena em ordem alfabética pelo dirigente/congregação
+      const nomeA = normalizar(a.dirigente || "");
+      const nomeB = normalizar(b.dirigente || "");
+      return nomeA.localeCompare(nomeB);
+    });
+  } else {
+    // Se não há busca ou filtro ativo, mantém a ordem inversa cronológica padrão (Mais Recentes Primeiro)
+    // que definimos no carregamento inicial.
+  }
 
   dadosFiltrados = filtradas;
   igrejasFiltradas = filtradas;
@@ -904,9 +1105,12 @@ async function listarIgrejas() {
       }
     }
 
-    todasIgrejas = igrejas;
-    dadosFiltrados = igrejas;
-    igrejasFiltradas = igrejas;
+    // Inverte a lista de dados vinda do Apps Script para exibir os cadastros mais recentes primeiro
+    const igrejasOrdenadas = [...igrejas].reverse();
+
+    todasIgrejas = igrejasOrdenadas;
+    dadosFiltrados = igrejasOrdenadas;
+    igrejasFiltradas = igrejasOrdenadas;
     paginaAtual = 1;
 
     if (igrejas.length === 0) {
@@ -1136,6 +1340,31 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Ouvinte para Auditoria de Compras (Estado Crítico)
+  const checkboxCritico = document.getElementById("filtro-estado-critico");
+  if (checkboxCritico) {
+    checkboxCritico.addEventListener("change", () => {
+      // Re-executa a atualização da aba de patrimônios com os dados de igrejas já filtrados na barra de busca
+      atualizarGestaoPatrimonio(dadosFiltrados);
+    });
+  }
+
   // Carrega lista de igrejas
   listarIgrejas();
 });
+
+/** Controla o efeito de abrir/fechar o Accordion (Sanfona) e girar a seta */
+function toggleAccordionRow(totvs) {
+  const linhaDetalhe = document.getElementById(`detalhe-${totvs}`);
+  const seta = document.getElementById(`seta-${totvs}`);
+
+  if (linhaDetalhe && seta) {
+    if (linhaDetalhe.style.display === "none") {
+      linhaDetalhe.style.display = "table-row";
+      seta.classList.add("aberta");
+    } else {
+      linhaDetalhe.style.display = "none";
+      seta.classList.remove("aberta");
+    }
+  }
+}
