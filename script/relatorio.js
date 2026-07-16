@@ -1005,25 +1005,28 @@ function rolarParaTabela() {
 }
 
 function aplicarFiltros() {
-  const termoBusca = normalizar(
-    (document.getElementById("filtro-igrejas") || {}).value || ""
-  );
-  const regiaoSelecionada = normalizar(
-    (document.getElementById("filtro-regiao-igrejas") || {}).value || ""
-  );
-  const estadualSelecionada = normalizar(
-    (document.getElementById("filtro-estadual-igrejas") || {}).value || ""
-  );
+  const inputFiltro = document.getElementById("filtro-igrejas");
+  const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+  const selectEstadual = document.getElementById("filtro-estadual-igrejas");
+
+  const termoBusca = normalizar(inputFiltro ? inputFiltro.value : "");
+  const regiaoSelecionada = normalizar(selectRegiao ? selectRegiao.value : "");
+  const estadualSelecionada = normalizar(selectEstadual ? selectEstadual.value : "");
 
   paginaAtual = 1; // Reseta para a página 1 ao filtrar
 
-  // Passo 1: Filtrar os dados brutos
+  // Quebra a busca por termos individuais para tornar a pesquisa por barra muito mais precisa
+  const termosIndividuais = termoBusca.split(/\s+/).filter(t => t.length > 0);
+
+  // Passo 1: Filtrar os dados brutos da lista principal de igrejas
   let filtradas = todasIgrejas.filter(igreja => {
     if (!igreja) return false;
 
-    const matchBusca = !termoBusca || [
-      igreja.totvs, igreja.regiao, igreja.estadual, igreja.dirigente, igreja.endereco
-    ].some(campo => campo && normalizar(campo).includes(termoBusca));
+    // Busca precisa: o registro precisa conter TODOS os termos digitados na barra (em qualquer ordem)
+    const matchBusca = termosIndividuais.length === 0 || termosIndividuais.every(termo => {
+      return [igreja.totvs, igreja.regiao, igreja.estadual, igreja.dirigente, igreja.endereco]
+        .some(campo => campo && normalizar(campo).includes(termo));
+    });
 
     const matchRegiao = !regiaoSelecionada || normalizar(igreja.regiao) === regiaoSelecionada;
 
@@ -1032,38 +1035,56 @@ function aplicarFiltros() {
     return matchBusca && matchRegiao && matchEstadual;
   });
 
-  // Passo 2: Ordenação inteligente avançada
+  // Passo 2: Ordenação inteligente avançada (Sede sempre no topo)
   if (termoBusca || regiaoSelecionada || estadualSelecionada) {
     filtradas.sort((a, b) => {
-      // Função auxiliar para verificar se a igreja é a Sede/Matriz da sua própria estadual
       const verificarSeEhSede = (igreja) => {
         const totvsStr = String(igreja.totvs || "").trim();
         const estadualStr = String(igreja.estadual || "");
-
-        // Se o TOTVS dela estiver mencionado no nome da Estadual (ex: "(T 13753)"), ela é a Sede!
         return estadualStr.includes(`(T ${totvsStr})`) || estadualStr.includes(`(T${totvsStr})`);
       };
-
       const ehSedeA = verificarSeEhSede(a);
       const ehSedeB = verificarSeEhSede(b);
-
-      // Critério 1: Sede sempre vai para o topo absoluto
       if (ehSedeA && !ehSedeB) return -1;
       if (!ehSedeA && ehSedeB) return 1;
-
-      // Critério 2: Se nenhuma for sede ou se ambas forem, ordena em ordem alfabética pelo dirigente/congregação
-      const nomeA = normalizar(a.dirigente || "");
-      const nomeB = normalizar(b.dirigente || "");
-      return nomeA.localeCompare(nomeB);
+      return normalizar(a.dirigente || "").localeCompare(normalizar(b.dirigente || ""));
     });
-  } else {
-    // Se não há busca ou filtro ativo, mantém a ordem inversa cronológica padrão (Mais Recentes Primeiro)
-    // que definimos no carregamento inicial.
   }
 
   dadosFiltrados = filtradas;
   igrejasFiltradas = filtradas;
+
+  // --- SINCRONIZAÇÃO DAS DUAS ABAS ---
+  renderizarTabela(dadosFiltrados);          // Atualiza a Aba 1 (Lista)
+  atualizarGestaoPatrimonio(dadosFiltrados); // 🌟 CORREÇÃO: Atualiza AGORA a Aba 2 (Patrimônio e Gráficos) com o mesmo filtro!
+
+  // Se a aba de pendências estiver ativa ou implementada, atualiza também
+  if (typeof atualizarListaPendencias === "function") {
+    atualizarListaPendencias();
+  }
+}
+
+function limparTodosOsFiltros() {
+  const inputBusca = document.getElementById("filtro-igrejas");
+  const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+  const selectEstadual = document.getElementById("filtro-estadual-igrejas");
+  const checkboxCritico = document.getElementById("filtro-estado-critico");
+
+  if (inputBusca) inputBusca.value = "";
+  if (selectRegiao) selectRegiao.value = "";
+  if (selectEstadual) selectEstadual.innerHTML = '<option value="">Todas as Estaduais</option>';
+  if (checkboxCritico) checkboxCritico.checked = false;
+
+  // Restaura a lista completa original e renderiza as duas abas limpas
+  dadosFiltrados = [...todasIgrejas];
+  igrejasFiltradas = [...todasIgrejas];
+  paginaAtual = 1;
+
   renderizarTabela(dadosFiltrados);
+  atualizarGestaoPatrimonio(dadosFiltrados);
+  if (typeof atualizarListaPendencias === "function") {
+    atualizarListaPendencias();
+  }
 }
 
 /** Carrega as igrejas da API e inicializa os filtros */
@@ -1349,6 +1370,12 @@ document.addEventListener("DOMContentLoaded", () => {
       // Re-executa a atualização da aba de patrimônios com os dados de igrejas já filtrados na barra de busca
       atualizarGestaoPatrimonio(dadosFiltrados);
     });
+  }
+
+  // Vincular o botão de limpar filtros caso exista no HTML
+  const btnLimpar = document.getElementById("btn-limpar-filtros");
+  if (btnLimpar) {
+    btnLimpar.addEventListener("click", limparTodosOsFiltros);
   }
 
   // Carrega lista de igrejas
