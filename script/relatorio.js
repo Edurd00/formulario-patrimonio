@@ -1,7 +1,7 @@
 /* =========================================
    GOOGLE APPS SCRIPT URL
 ========================================= */
-const URL = "https://script.google.com/macros/s/AKfycbxDiuhIuL6hnfNZL68Yl8YD528YuXg7scNc9ATJpgDo7cV6kRC90rc4SzpCLe_BkhfHRQ/exec";
+const URL = "https://script.google.com/macros/s/AKfycbyA_GPEXPKow6kQF25MoB9etleYbOGF17dRdbSSHXi634LzB_rsT9KGeumrhBGWkWQRTA/exec";
 
 /* =========================================
    INSTÂNCIAS GLOBAIS DE GRÁFICOS (CHART.JS)
@@ -1403,47 +1403,51 @@ function atualizarListaPendencias() {
     return;
   }
 
-  // Extrai o número do TOTVS de dentro da string do filtro (Ex: "Maceio (T 4760)" -> "4760")
-  let totvsFiltroEstadual = "";
-  const matchTotvs = estadualRaw.match(/\(T\s*(\d+)\)/i);
-  if (matchTotvs && matchTotvs[1]) {
-    totvsFiltroEstadual = String(matchTotvs[1]).trim();
+  // 1. Cria o Set com os códigos TOTVS de quem JÁ preencheu o patrimônio
+  const totvsComPatrimonio = new Set();
+  if (Array.isArray(todosPatrimonios)) {
+    todosPatrimonios.forEach(p => {
+      if (p && p.totvs) totvsComPatrimonio.add(String(p.totvs).trim());
+    });
   }
 
-  // Set de TOTVS de quem já enviou
-  const totvsComPatrimonio = new Set();
-  todosPatrimonios.forEach(p => { if (p && p.totvs) totvsComPatrimonio.add(String(p.totvs).trim()); });
+  // LOG DE DIAGNÓSTICO NO CONSOLE (Aperte F12 para ver se as listas estão chegando)
+  console.log("CRUZAMENTO - Total Ativas:", todasIgrejasAtivasExternas.length, "Total Já Enviaram:", totvsComPatrimonio.size);
 
-  // Filtra locais pendentes da região selecionada e que pertencem à linhagem dessa estadual
+  // 2. Filtra as igrejas da reclassificação usando SUBTRAÇÃO POR TOTVS PURA
   const pendentes = todasIgrejasAtivasExternas.filter(igreja => {
-    if (!igreja || igreja.tipo !== "Local") return false;
+    if (!igreja) return false;
 
-    // 1. Verifica correspondência flexível de região (remove hífens e espaços extras)
-    const regiaoIgrejaLimpa = normalizar(igreja.regiao).replace(/[^a-z0-9]/g, "");
-    const regiaoFiltroLimpa = regiaoSel.replace(/[^a-z0-9]/g, "");
+    // Queremos apenas as igrejas do tipo Local que ainda não enviaram nada
+    if (igreja.tipo !== "Local") return false;
 
-    if (regiaoIgrejaLimpa !== regiaoFiltroLimpa) return false;
+    // Normaliza os dados da igreja vindos do backend externo
+    const regiaoIgreja = normalizar(igreja.regiao).replace(/[^a-z0-9]/g, "");
+    const regiaoFiltro = regiaoSel.replace(/[^a-z0-9]/g, "");
+    const estadualIgreja = normalizar(igreja.estadual);
 
-    // 2. Validação pela propriedade herdada da Sede
-    let pertenceAEstaEstadual = false;
-    if (totvsFiltroEstadual) {
-      pertenceAEstaEstadual = String(igreja.liderSuperior).includes(totvsFiltroEstadual) ||
-                              normalizar(igreja.liderSuperior).includes(estadualSel.split(" ")[0]);
-    } else {
-      pertenceAEstaEstadual = normalizar(igreja.liderSuperior).includes(estadualSel.split(" ")[0]);
-    }
+    // Validação 1: Pertence à Região Geográfica selecionada?
+    if (regiaoIgreja !== regiaoFiltro) return false;
 
+    // Validação 2: Pertence à Estadual selecionada? (Busca flexível por trecho do texto)
+    // Exemplo: Se na tela está "Maceio (T 4760)" e o filtro vira "maceio", ele busca se a propriedade estadual da igreja contém "maceio"
+    const termoCidadeFiltro = estadualSel.split(" ")[0].split("-").pop();
+    const correspondeEstadual = estadualIgreja.includes(termoCidadeFiltro) || estadualSel.includes(estadualIgreja);
+
+    if (!correspondeEstadual) return false;
+
+    // Validação 3: O código TOTVS dela NÃO está na lista de quem já enviou?
     const naoEnviou = !totvsComPatrimonio.has(String(igreja.totvs).trim());
 
-    return pertenceAEstaEstadual && naoEnviou;
+    return naoEnviou;
   });
 
   if (pendentes.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: green; padding: 30px;">🎉 100% de conformidade! Nenhuma pendência neste setor.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: green; padding: 30px; font-weight: 600;">🎉 100% de conformidade! Nenhuma congregação pendente nesta Estadual.</td></tr>`;
     return;
   }
 
-  // Agrupa as pendentes por líder superior
+  // 3. Agrupa as pendentes por campo de liderança para organizar a tabela
   const agrupadoPorLider = {};
   pendentes.forEach(i => {
     const lider = i.liderSuperior || "Estadual Responsável";
@@ -1451,7 +1455,7 @@ function atualizarListaPendencias() {
     agrupadoPorLider[lider].push(i);
   });
 
-  // Renderiza a tabela agrupada e gera o link dinâmico de cobrança do WhatsApp para o líder do campo
+  // 4. Renderiza a lista na tela
   let htmlRows = "";
   Object.keys(agrupadoPorLider).forEach(lider => {
     const igrejasLideradas = agrupadoPorLider[lider];
@@ -1459,7 +1463,7 @@ function atualizarListaPendencias() {
     igrejasLideradas.forEach(i => { listaTextoWpp += `❌ TOTVS ${i.totvs} - ${i.nome}\n`; });
 
     const msgWhatsApp = encodeURIComponent(
-      `Olá, Supervisor responsável da *${lider}*!\n\n` +
+      `Olá, Supervisor da *${lider}*!\n\n` +
       `Constatamos no painel de controle que o seu campo possui *${igrejasLideradas.length} igrejas pendentes* com o Inventário Patrimonial Anual. Como liderança responsável, pedimos seu apoio para cobrar o envio dos templos abaixo:\n\n` +
       `${listaTextoWpp}\n` +
       `Deus abençoe seu trabalho!`
@@ -1467,10 +1471,10 @@ function atualizarListaPendencias() {
 
     htmlRows += `
       <tr style="background-color: #edf2f7; font-weight: bold;">
-        <td colspan="4">👤 CAMPO: ${lider} (${igrejasLideradas.length} pendentes)</td>
+        <td colspan="4">👤 SECTOR / CAMPO: ${lider} (${igrejasLideradas.length} pendentes)</td>
         <td style="text-align: center;">
-          <a href="https://api.whatsapp.com/send?text=${msgWhatsApp}" target="_blank" style="background-color: #25d366; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none;">
-            Cobrar Supervisor
+          <a href="https://api.whatsapp.com/send?text=${msgWhatsApp}" target="_blank" style="background-color: #25d366; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px;">
+            <i class="fa-brands fa-whatsapp"></i> Cobrar Campo
           </a>
         </td>
       </tr>
@@ -1479,11 +1483,11 @@ function atualizarListaPendencias() {
     igrejasLideradas.forEach(i => {
       htmlRows += `
         <tr>
-          <td style="padding-left: 20px;">${i.totvs}</td>
+          <td style="padding-left: 20px;"><strong>${i.totvs}</strong></td>
           <td>${i.nome}</td>
           <td><span style="font-size:10px; background:#ddd; padding:2px 5px; border-radius:3px;">LOCAL</span></td>
-          <td>Responsável: ${lider}</td>
-          <td style="color: red; text-align: center; font-weight: 500;">Pendente</td>
+          <td>Superior: ${lider}</td>
+          <td style="color: red; text-align: center; font-weight: 600;">⚠️ Pendente</td>
         </tr>
       `;
     });
