@@ -1035,10 +1035,6 @@ function verificarControleAcessoRBAC() {
       if (typeof atualizarFiltroEstaduais === "function") atualizarFiltroEstaduais();
     }
 
-    // Oculta o botão de limpar filtros para supervisores para evitar que limpe a própria trava
-    const btnLimpar = document.getElementById("btn-limpar-filtros");
-    if (btnLimpar) btnLimpar.style.display = "none";
-
     // Força a aplicação imediata do filtro regional
     if (typeof aplicarFiltros === "function") {
       aplicarFiltros();
@@ -1134,26 +1130,31 @@ function aplicarFiltros() {
 }
 
 function limparTodosOsFiltros() {
+  const perfil = sessionStorage.getItem("usuarioPerfil") || "Admin";
+  let regioesDesignadas = [];
+  try { regioesDesignadas = JSON.parse(sessionStorage.getItem("usuarioRegioes") || "[]"); } catch(e) { regioesDesignadas = ["Todas"]; }
+
   const inputBusca = document.getElementById("filtro-igrejas");
   const selectRegiao = document.getElementById("filtro-regiao-igrejas");
   const selectEstadual = document.getElementById("filtro-estadual-igrejas");
   const checkboxCritico = document.getElementById("filtro-estado-critico");
 
   if (inputBusca) inputBusca.value = "";
-  if (selectRegiao) selectRegiao.value = "";
   if (selectEstadual) selectEstadual.innerHTML = '<option value="">Todas as Estaduais</option>';
   if (checkboxCritico) checkboxCritico.checked = false;
 
-  // Restaura a lista completa original e renderiza as duas abas limpas
-  dadosFiltrados = [...todasIgrejas];
-  igrejasFiltradas = [...todasIgrejas];
-  paginaAtual = 1;
-
-  renderizarTabela(dadosFiltrados);
-  atualizarGestaoPatrimonio(dadosFiltrados);
-  if (typeof atualizarListaPendencias === "function") {
-    atualizarListaPendencias();
+  // Se for supervisor, limpa tudo MAS mantém a região dele selecionada
+  if (perfil === "Supervisor" && !regioesDesignadas.includes("Todas")) {
+    if (selectRegiao && regioesDesignadas.length > 0) {
+      selectRegiao.value = regioesDesignadas[0]; // Volta para a primeira região permitida dele
+    }
+  } else {
+    // Se for administrador global, limpa a região também
+    if (selectRegiao) selectRegiao.value = "";
   }
+
+  // Roda o motor de filtros para atualizar a tela com a limpeza aplicada
+  aplicarFiltros();
 }
 
 /** Carrega as igrejas da API e inicializa os filtros */
