@@ -541,6 +541,7 @@
             <div class="tabs-container no-print">
                 <button type="button" class="tab-btn active" id="tab-igrejas">⛪ Lista de Igrejas</button>
                 <button type="button" class="tab-btn" id="tab-patrimonio">📦 Gestão de Patrimônio</button>
+                <button type="button" class="tab-btn" id="tab-pendencias">⚠️ Pendências por Estadual</button>
             </div>
 
             <!-- Barra de busca e filtros -->
@@ -627,6 +628,28 @@
                         </thead>
                         <tbody id="tbody-consolidado-patrimonio">
                             <!-- Dinâmico -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Conteúdo da Aba 3: Pendências por Estadual -->
+            <div id="conteudo-tab-pendencias" style="display: none;">
+                <div class="tabela-container">
+                    <table class="tabela-dinamica" id="tabela-pendencias-estado">
+                        <thead>
+                            <tr>
+                                <th>Código TOTVS</th>
+                                <th>Igreja / Congregação</th>
+                                <th>Tipo</th>
+                                <th>Liderança</th>
+                                <th style="text-align: center;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-pendencias-estado">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 30px;">🔍 Por favor, selecione uma Estadual para ver as pendências.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>

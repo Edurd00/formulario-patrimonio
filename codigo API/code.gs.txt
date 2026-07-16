@@ -18,7 +18,11 @@ function doGet(e) {
     }
 
     if (acao === "listar_patrimonios" || acao === "listarpatrimonios") {
-      return respostaSucesso("Lista de patrimonios recuperada com sucesso.", listarTodosPatrimonios());
+      const dados = {
+        patrimonios: listarTodosPatrimonios(),
+        igrejasAtivas: obterTodasIgrejasAtivasExternas()
+      };
+      return respostaSucesso("Lista de patrimonios recuperada com sucesso.", dados);
     }
 
     if (acao === "obter_detalhes" || acao === "obterdetalhes") {
@@ -124,4 +128,96 @@ function cadastrarIgreja(payload) {
   return respostaSucesso("Cadastro realizado com sucesso.", {
     totvs: dados.totvs
   });
+}
+
+function obterTodasIgrejasAtivasExternas() {
+  try {
+    // ID da planilha "Reclassificação - Remapeamento Finalizado"
+    const ID_PLANILHA_EXTERNA = "1ekbFbmdmIWa94ivc6D-epoveUUWbVN_AXVg76_5a0ic";
+
+    const planilhaExterna = SpreadsheetApp.openById(ID_PLANILHA_EXTERNA);
+    const todasAbas = planilhaExterna.getSheets();
+    const listaIgrejas = [];
+
+    const abasIgnoradas = ["Legenda", "Resumo", "Configurações"];
+
+    todasAbas.forEach(aba => {
+      const nomeAba = aba.getName();
+      if (abasIgnoradas.includes(nomeAba)) return;
+
+      const dados = aba.getDataRange().getValues();
+      const backgrounds = aba.getDataRange().getBackgrounds(); // Lê as cores para identificar a hierarquia
+
+      // Variáveis de rastreamento de liderança ativa na leitura de cima para baixo
+      let estadualAtual = { codigo: "", nome: "" };
+      let setorialAtual = { codigo: "", nome: "" };
+      let centralAtual  = { codigo: "", nome: "" };
+      let regionalAtual = { codigo: "", nome: "" };
+
+      for (let i = 1; i < dados.length; i++) {
+        const codigoTotvs = String(dados[i][0] || "").trim();
+        if (!codigoTotvs || isNaN(codigoTotvs)) continue;
+
+        const nomeItem = String(dados[i][1] || "").trim();
+        const endereco = String(dados[i][2] || "").trim();
+        const estado = String(dados[i][4] || "").trim();
+        const corDeFundo = String(backgrounds[i][0]).toLowerCase();
+
+        // Mapeamento de hierarquia por cores padrão da IPDA na planilha:
+        const ehEstadual = corDeFundo === "#c9daf8" || corDeFundo === "#a4c2f4"; // Azul
+        const ehSetorial = corDeFundo === "#fff2cc" || corDeFundo === "#ffe599"; // Amarelo
+        const ehCentral  = corDeFundo === "#fce5cd" || corDeFundo === "#f9cb9c"; // Pêssego
+        const ehRegional = corDeFundo === "#d9ead3" || corDeFundo === "#b6d7a8"; // Verde
+
+        const infoIgreja = {
+          totvs: codigoTotvs,
+          nome: nomeItem,
+          endereco: `${endereco} - ${estado}`,
+          estado: estado,
+          regiao: nomeAba,
+          tipo: "Local",
+          liderSuperior: "",
+          estadual: ""
+        };
+
+        if (ehEstadual) {
+          estadualAtual = { codigo: codigoTotvs, nome: nomeItem };
+          infoIgreja.tipo = "Estadual";
+        } else if (ehSetorial) {
+          setorialAtual = { codigo: codigoTotvs, nome: nomeItem };
+          infoIgreja.tipo = "Setorial";
+          infoIgreja.liderSuperior = estadualAtual.nome ? `Estadual: ${estadualAtual.nome}` : "";
+        } else if (ehCentral) {
+          centralAtual = { codigo: codigoTotvs, nome: nomeItem };
+          infoIgreja.tipo = "Central";
+          infoIgreja.liderSuperior = setorialAtual.nome ? `Setorial: ${setorialAtual.nome}` : (estadualAtual.nome ? `Estadual: ${estadualAtual.nome}` : "");
+        } else if (ehRegional) {
+          regionalAtual = { codigo: codigoTotvs, nome: nomeItem };
+          infoIgreja.tipo = "Regional";
+          infoIgreja.liderSuperior = centralAtual.nome ? `Central: ${centralAtual.nome}` : (setorialAtual.nome ? `Setorial: ${setorialAtual.nome}` : "");
+        } else {
+          // Igreja Local (branca): Herda o chefe imediato ativo acima dela
+          infoIgreja.tipo = "Local";
+          if (regionalAtual.nome) {
+            infoIgreja.liderSuperior = `Regional: ${regionalAtual.nome}`;
+          } else if (centralAtual.nome) {
+            infoIgreja.liderSuperior = `Central: ${centralAtual.nome}`;
+          } else if (setorialAtual.nome) {
+            infoIgreja.liderSuperior = `Setorial: ${setorialAtual.nome}`;
+          } else {
+            infoIgreja.liderSuperior = estadualAtual.nome ? `Estadual: ${estadualAtual.nome}` : "Sede Regional";
+          }
+        }
+
+        infoIgreja.estadual = estadualAtual.nome || "";
+
+        listaIgrejas.push(infoIgreja);
+      }
+    });
+
+    return listaIgrejas;
+  } catch (erro) {
+    console.error("Erro ao processar hierarquias: " + erro.toString());
+    return [];
+  }
 }

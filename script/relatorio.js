@@ -1,7 +1,7 @@
 /* =========================================
    GOOGLE APPS SCRIPT URL
 ========================================= */
-const URL = "https://script.google.com/macros/s/AKfycbyA_GPEXPKow6kQF25MoB9etleYbOGF17dRdbSSHXi634LzB_rsT9KGeumrhBGWkWQRTA/exec";
+const URL = "https://script.google.com/macros/s/AKfycbxDiuhIuL6hnfNZL68Yl8YD528YuXg7scNc9ATJpgDo7cV6kRC90rc4SzpCLe_BkhfHRQ/exec";
 
 /* =========================================
    INSTÂNCIAS GLOBAIS DE GRÁFICOS (CHART.JS)
@@ -164,6 +164,7 @@ if (btnExportarPdf) {
 ========================================= */
 const listaIgrejasContainer = document.getElementById("lista-igrejas-container");
 let todasIgrejas = [];
+let todasIgrejasAtivasExternas = [];
 let igrejasFiltradas = [];
 let paginaAtual = 1;
 const itensPorPagina = 50;
@@ -1062,6 +1063,7 @@ function aplicarFiltros() {
   dadosFiltrados = filtradas;
   igrejasFiltradas = filtradas;
   renderizarTabela(dadosFiltrados);
+  atualizarListaPendencias();
 }
 
 /** Carrega as igrejas da API e inicializa os filtros */
@@ -1130,28 +1132,47 @@ async function listarIgrejas() {
       console.log("DIAGNÓSTICO PATRIMÔNIO - Resposta bruta do servidor:", textPatrimonio);
 
       const resPatrimonio = JSON.parse(textPatrimonio);
+
       if (resPatrimonio.sucesso && resPatrimonio.mensagem === "Backend online.") {
         isBackendOutdated = true;
         const alertaBackend = document.getElementById("alerta-atualizacao-backend");
         if (alertaBackend) alertaBackend.style.display = "block";
         console.warn("DIAGNÓSTICO - Google Apps Script desatualizado detectado!");
         todosPatrimonios = [];
+        todasIgrejasAtivasExternas = [];
       } else if (resPatrimonio.sucesso && resPatrimonio.dados) {
-        todosPatrimonios = Array.isArray(resPatrimonio.dados) ? resPatrimonio.dados : (resPatrimonio.dados.dados || []);
-        console.log("DIAGNÓSTICO PATRIMÔNIO - Array processado com sucesso. Itens:", todosPatrimonios.length);
+        // CORREÇÃO DE ACESSO AO OBJETO DE RESPOSTA DA API:
+        const payloadDados = resPatrimonio.dados;
+
+        if (payloadDados.patrimonios) {
+          todosPatrimonios = Array.isArray(payloadDados.patrimonios) ? payloadDados.patrimonios : [];
+        } else {
+          todosPatrimonios = Array.isArray(payloadDados) ? payloadDados : [];
+        }
+
+        if (payloadDados.igrejasAtivas) {
+          todasIgrejasAtivasExternas = Array.isArray(payloadDados.igrejasAtivas) ? payloadDados.igrejasAtivas : [];
+        } else {
+          todasIgrejasAtivasExternas = [];
+        }
+
+        console.log("DIAGNÓSTICO PATRIMÔNIO - Array processado com sucesso. Itens:", todosPatrimonios.length, "Igrejas Ativas Externas:", todasIgrejasAtivasExternas.length);
       } else {
         console.warn("DIAGNÓSTICO PATRIMÔNIO - Resposta sem sucesso ou dados ausentes:", resPatrimonio.mensagem);
         todosPatrimonios = [];
+        todasIgrejasAtivasExternas = [];
       }
     } catch (errPatrimonio) {
       console.error("DIAGNÓSTICO PATRIMÔNIO - Falha catastrófica ao buscar ativos:", errPatrimonio);
       todosPatrimonios = [];
+      todasIgrejasAtivasExternas = [];
     }
 
     // Popula o filtro de regiões e de estaduais e renderiza a tabela
     popularFiltroRegioes();
     atualizarFiltroEstaduais();
     renderizarTabela(dadosFiltrados);
+    atualizarListaPendencias();
 
     // Ativa os listeners dos filtros
     const inputBusca = document.getElementById("filtro-igrejas");
@@ -1320,23 +1341,39 @@ document.addEventListener("DOMContentLoaded", () => {
   // Alternância de Abas (Tabs)
   const tabIgrejas = document.getElementById("tab-igrejas");
   const tabPatrimonio = document.getElementById("tab-patrimonio");
+  const tabPendencias = document.getElementById("tab-pendencias");
   const conteudoTabIgrejas = document.getElementById("conteudo-tab-igrejas");
   const conteudoTabPatrimonio = document.getElementById("conteudo-tab-patrimonio");
+  const conteudoTabPendencias = document.getElementById("conteudo-tab-pendencias");
 
-  if (tabIgrejas && tabPatrimonio && conteudoTabIgrejas && conteudoTabPatrimonio) {
+  if (tabIgrejas && tabPatrimonio && tabPendencias && conteudoTabIgrejas && conteudoTabPatrimonio && conteudoTabPendencias) {
     tabIgrejas.addEventListener("click", () => {
       tabIgrejas.classList.add("active");
       tabPatrimonio.classList.remove("active");
+      tabPendencias.classList.remove("active");
       conteudoTabIgrejas.style.display = "block";
       conteudoTabPatrimonio.style.display = "none";
+      conteudoTabPendencias.style.display = "none";
     });
 
     tabPatrimonio.addEventListener("click", () => {
       tabPatrimonio.classList.add("active");
       tabIgrejas.classList.remove("active");
+      tabPendencias.classList.remove("active");
       conteudoTabIgrejas.style.display = "none";
       conteudoTabPatrimonio.style.display = "block";
+      conteudoTabPendencias.style.display = "none";
       atualizarGestaoPatrimonio(dadosFiltrados);
+    });
+
+    tabPendencias.addEventListener("click", () => {
+      tabPendencias.classList.add("active");
+      tabIgrejas.classList.remove("active");
+      tabPatrimonio.classList.remove("active");
+      conteudoTabIgrejas.style.display = "none";
+      conteudoTabPatrimonio.style.display = "none";
+      conteudoTabPendencias.style.display = "block";
+      atualizarListaPendencias();
     });
   }
 
@@ -1352,6 +1389,112 @@ document.addEventListener("DOMContentLoaded", () => {
   // Carrega lista de igrejas
   listarIgrejas();
 });
+
+function atualizarListaPendencias() {
+  const tbody = document.getElementById("tbody-pendencias-estado");
+  if (!tbody) return;
+
+  const regiaoSel = normalizar(document.getElementById("filtro-regiao-igrejas").value || "");
+  const estadualRaw = document.getElementById("filtro-estadual-igrejas").value || "";
+  const estadualSel = normalizar(estadualRaw);
+
+  if (!estadualRaw) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 30px;">🔍 Por favor, selecione uma Estadual para ver as pendências.</td></tr>`;
+    return;
+  }
+
+  // 1. Cria o Set com os códigos TOTVS de quem JÁ preencheu o patrimônio
+  const totvsComPatrimonio = new Set();
+  if (Array.isArray(todosPatrimonios)) {
+    todosPatrimonios.forEach(p => {
+      if (p && p.totvs) totvsComPatrimonio.add(String(p.totvs).trim());
+    });
+  }
+
+  // 2. Extrai termos de busca simples da Estadual selecionada para evitar quebras por caracteres especiais
+  const termoCidadeFiltro = estadualSel.split(" ")[0].split("-").pop().replace(/[^a-z0-9]/g, "");
+
+  // 3. Filtra as igrejas da reclassificação usando SUBTRAÇÃO POR TOTVS PURA
+  const pendentes = todasIgrejasAtivasExternas.filter(igreja => {
+    if (!igreja) return false;
+
+    // Queremos apenas as igrejas locais pendentes
+    if (igreja.tipo !== "Local") return false;
+
+    // Normaliza os dados vindos do backend
+    const regiaoIgrejaLimpa = normalizar(igreja.regiao).replace(/[^a-z0-9]/g, "");
+    const regiaoFiltroLimpa = regiaoSel.replace(/[^a-z0-9]/g, "");
+    const estadualIgrejaLimpa = normalizar(igreja.estadual).replace(/[^a-z0-9]/g, "");
+
+    // Validação 1: Pertence à Região Geográfica selecionada?
+    if (regiaoIgrejaLimpa !== regiaoFiltroLimpa) return false;
+
+    // Validação 2: Pertence à Estadual selecionada? (Busca flexível e tolerante)
+    const correspondeEstadual = estadualIgrejaLimpa.includes(termoCidadeFiltro) ||
+                                estadualSel.includes(estadualIgrejaLimpa) ||
+                                normalizar(igreja.liderSuperior).includes(termoCidadeFiltro);
+
+    if (!correspondeEstadual) return false;
+
+    // Validação 3: O código TOTVS dela NÃO está na lista de quem já enviou?
+    const naoEnviou = !totvsComPatrimonio.has(String(igreja.totvs).trim());
+
+    return naoEnviou;
+  });
+
+  if (pendentes.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: green; padding: 30px; font-weight: 600;">🎉 100% de conformidade! Nenhuma congregação pendente nesta Estadual.</td></tr>`;
+    return;
+  }
+
+  // Agrupa as pendentes por campo de liderança para organizar a tabela
+  const agrupadoPorLider = {};
+  pendentes.forEach(i => {
+    const lider = i.liderSuperior || "Estadual Responsável";
+    if (!agrupadoPorLider[lider]) agrupadoPorLider[lider] = [];
+    agrupadoPorLider[lider].push(i);
+  });
+
+  // Renderiza a lista na tela
+  let htmlRows = "";
+  Object.keys(agrupadoPorLider).forEach(lider => {
+    const igrejasLideradas = agrupadoPorLider[lider];
+    let listaTextoWpp = "";
+    igrejasLideradas.forEach(i => { listaTextoWpp += `❌ TOTVS ${i.totvs} - ${i.nome}\n`; });
+
+    const msgWhatsApp = encodeURIComponent(
+      `Olá, Supervisor da *${lider}*!\n\n` +
+      `Constatamos no painel de controle que o seu campo possui *${igrejasLideradas.length} igrejas pendentes* com o Inventário Patrimonial Anual. Como liderança responsável, pedimos seu apoio para cobrar o envio dos templos abaixo:\n\n` +
+      `${listaTextoWpp}\n` +
+      `Deus abençoe seu trabalho!`
+    );
+
+    htmlRows += `
+      <tr style="background-color: #edf2f7; font-weight: bold;">
+        <td colspan="4">👤 SECTOR / CAMPO: ${lider} (${igrejasLideradas.length} pendentes)</td>
+        <td style="text-align: center;">
+          <a href="https://api.whatsapp.com/send?text=${msgWhatsApp}" target="_blank" style="background-color: #25d366; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px;">
+            <i class="fa-brands fa-whatsapp"></i> Cobrar Campo
+          </a>
+        </td>
+      </tr>
+    `;
+
+    igrejasLideradas.forEach(i => {
+      htmlRows += `
+        <tr>
+          <td style="padding-left: 20px;"><strong>${i.totvs}</strong></td>
+          <td>${i.nome}</td>
+          <td><span style="font-size:10px; background:#ddd; padding:2px 5px; border-radius:3px;">LOCAL</span></td>
+          <td>Superior: ${lider}</td>
+          <td style="color: red; text-align: center; font-weight: 600;">⚠️ Pendente</td>
+        </tr>
+      `;
+    });
+  });
+
+  tbody.innerHTML = htmlRows;
+}
 
 /** Controla o efeito de abrir/fechar o Accordion (Sanfona) e girar a seta */
 function toggleAccordionRow(totvs) {
