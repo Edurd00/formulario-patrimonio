@@ -164,6 +164,7 @@ if (btnExportarPdf) {
 ========================================= */
 const listaIgrejasContainer = document.getElementById("lista-igrejas-container");
 let todasIgrejas = [];
+let todasIgrejasAtivasExternas = [];
 let igrejasFiltradas = [];
 let paginaAtual = 1;
 const itensPorPagina = 50;
@@ -1062,6 +1063,7 @@ function aplicarFiltros() {
   dadosFiltrados = filtradas;
   igrejasFiltradas = filtradas;
   renderizarTabela(dadosFiltrados);
+  atualizarListaPendencias();
 }
 
 /** Carrega as igrejas da API e inicializa os filtros */
@@ -1137,8 +1139,14 @@ async function listarIgrejas() {
         console.warn("DIAGNÓSTICO - Google Apps Script desatualizado detectado!");
         todosPatrimonios = [];
       } else if (resPatrimonio.sucesso && resPatrimonio.dados) {
-        todosPatrimonios = Array.isArray(resPatrimonio.dados) ? resPatrimonio.dados : (resPatrimonio.dados.dados || []);
-        console.log("DIAGNÓSTICO PATRIMÔNIO - Array processado com sucesso. Itens:", todosPatrimonios.length);
+        if (resPatrimonio.dados.patrimonios && resPatrimonio.dados.igrejasAtivas) {
+          todosPatrimonios = Array.isArray(resPatrimonio.dados.patrimonios) ? resPatrimonio.dados.patrimonios : [];
+          todasIgrejasAtivasExternas = Array.isArray(resPatrimonio.dados.igrejasAtivas) ? resPatrimonio.dados.igrejasAtivas : [];
+        } else {
+          todosPatrimonios = Array.isArray(resPatrimonio.dados) ? resPatrimonio.dados : (resPatrimonio.dados.dados || []);
+          todasIgrejasAtivasExternas = [];
+        }
+        console.log("DIAGNÓSTICO PATRIMÔNIO - Array processado com sucesso. Itens:", todosPatrimonios.length, "Igrejas Ativas Externas:", todasIgrejasAtivasExternas.length);
       } else {
         console.warn("DIAGNÓSTICO PATRIMÔNIO - Resposta sem sucesso ou dados ausentes:", resPatrimonio.mensagem);
         todosPatrimonios = [];
@@ -1152,6 +1160,7 @@ async function listarIgrejas() {
     popularFiltroRegioes();
     atualizarFiltroEstaduais();
     renderizarTabela(dadosFiltrados);
+    atualizarListaPendencias();
 
     // Ativa os listeners dos filtros
     const inputBusca = document.getElementById("filtro-igrejas");
@@ -1320,23 +1329,39 @@ document.addEventListener("DOMContentLoaded", () => {
   // Alternância de Abas (Tabs)
   const tabIgrejas = document.getElementById("tab-igrejas");
   const tabPatrimonio = document.getElementById("tab-patrimonio");
+  const tabPendencias = document.getElementById("tab-pendencias");
   const conteudoTabIgrejas = document.getElementById("conteudo-tab-igrejas");
   const conteudoTabPatrimonio = document.getElementById("conteudo-tab-patrimonio");
+  const conteudoTabPendencias = document.getElementById("conteudo-tab-pendencias");
 
-  if (tabIgrejas && tabPatrimonio && conteudoTabIgrejas && conteudoTabPatrimonio) {
+  if (tabIgrejas && tabPatrimonio && tabPendencias && conteudoTabIgrejas && conteudoTabPatrimonio && conteudoTabPendencias) {
     tabIgrejas.addEventListener("click", () => {
       tabIgrejas.classList.add("active");
       tabPatrimonio.classList.remove("active");
+      tabPendencias.classList.remove("active");
       conteudoTabIgrejas.style.display = "block";
       conteudoTabPatrimonio.style.display = "none";
+      conteudoTabPendencias.style.display = "none";
     });
 
     tabPatrimonio.addEventListener("click", () => {
       tabPatrimonio.classList.add("active");
       tabIgrejas.classList.remove("active");
+      tabPendencias.classList.remove("active");
       conteudoTabIgrejas.style.display = "none";
       conteudoTabPatrimonio.style.display = "block";
+      conteudoTabPendencias.style.display = "none";
       atualizarGestaoPatrimonio(dadosFiltrados);
+    });
+
+    tabPendencias.addEventListener("click", () => {
+      tabPendencias.classList.add("active");
+      tabIgrejas.classList.remove("active");
+      tabPatrimonio.classList.remove("active");
+      conteudoTabIgrejas.style.display = "none";
+      conteudoTabPatrimonio.style.display = "none";
+      conteudoTabPendencias.style.display = "block";
+      atualizarListaPendencias();
     });
   }
 
@@ -1352,6 +1377,85 @@ document.addEventListener("DOMContentLoaded", () => {
   // Carrega lista de igrejas
   listarIgrejas();
 });
+
+function atualizarListaPendencias() {
+  const tbody = document.getElementById("tbody-pendencias-estado");
+  if (!tbody) return;
+
+  const regiaoSel = normalizar(document.getElementById("filtro-regiao-igrejas").value || "");
+  const estadualSel = normalizar(document.getElementById("filtro-estadual-igrejas").value || "");
+
+  if (!estadualSel) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 30px;">🔍 Por favor, selecione uma Estadual para ver as pendências.</td></tr>`;
+    return;
+  }
+
+  // Set de TOTVS de quem já enviou
+  const totvsComPatrimonio = new Set();
+  todosPatrimonios.forEach(p => { if (p && p.totvs) totvsComPatrimonio.add(String(p.totvs).trim()); });
+
+  // Filtra locais pendentes da região selecionada e estadual selecionada
+  const pendentes = todasIgrejasAtivasExternas.filter(igreja => {
+    if (!igreja || igreja.tipo !== "Local") return false;
+    const correspondeRegiao = normalizar(igreja.regiao) === regiaoSel;
+    const correspondeEstadual = normalizar(igreja.estadual) === estadualSel;
+    const naoEnviou = !totvsComPatrimonio.has(String(igreja.totvs).trim());
+    return correspondeRegiao && correspondeEstadual && naoEnviou;
+  });
+
+  if (pendentes.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: green; padding: 30px;">🎉 100% de conformidade! Nenhuma pendência neste setor.</td></tr>`;
+    return;
+  }
+
+  // Agrupa as pendentes por líder superior
+  const agrupadoPorLider = {};
+  pendentes.forEach(i => {
+    const lider = i.liderSuperior || "Estadual Responsável";
+    if (!agrupadoPorLider[lider]) agrupadoPorLider[lider] = [];
+    agrupadoPorLider[lider].push(i);
+  });
+
+  // Renderiza a tabela agrupada e gera o link dinâmico de cobrança do WhatsApp para o líder do campo
+  let htmlRows = "";
+  Object.keys(agrupadoPorLider).forEach(lider => {
+    const igrejasLideradas = agrupadoPorLider[lider];
+    let listaTextoWpp = "";
+    igrejasLideradas.forEach(i => { listaTextoWpp += `❌ TOTVS ${i.totvs} - ${i.nome}\n`; });
+
+    const msgWhatsApp = encodeURIComponent(
+      `Olá, Supervisor responsável da *${lider}*!\n\n` +
+      `Constatamos no painel de controle que o seu campo possui *${igrejasLideradas.length} igrejas pendentes* com o Inventário Patrimonial Anual. Como liderança responsável, pedimos seu apoio para cobrar o envio dos templos abaixo:\n\n` +
+      `${listaTextoWpp}\n` +
+      `Deus abençoe seu trabalho!`
+    );
+
+    htmlRows += `
+      <tr style="background-color: #edf2f7; font-weight: bold;">
+        <td colspan="4">👤 CAMPO: ${lider} (${igrejasLideradas.length} pendentes)</td>
+        <td style="text-align: center;">
+          <a href="https://api.whatsapp.com/send?text=${msgWhatsApp}" target="_blank" style="background-color: #25d366; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none;">
+            Cobrar Supervisor
+          </a>
+        </td>
+      </tr>
+    `;
+
+    igrejasLideradas.forEach(i => {
+      htmlRows += `
+        <tr>
+          <td style="padding-left: 20px;">${i.totvs}</td>
+          <td>${i.nome}</td>
+          <td><span style="font-size:10px; background:#ddd; padding:2px 5px; border-radius:3px;">LOCAL</span></td>
+          <td>Responsável: ${lider}</td>
+          <td style="color: red; text-align: center;">Pendente</td>
+        </tr>
+      `;
+    });
+  });
+
+  tbody.innerHTML = htmlRows;
+}
 
 /** Controla o efeito de abrir/fechar o Accordion (Sanfona) e girar a seta */
 function toggleAccordionRow(totvs) {
