@@ -1030,27 +1030,33 @@ function aplicarFiltros() {
     return matchBusca && matchRegiao && matchEstadual;
   });
 
-  // Passo 2: Aplicar ordenação inteligente baseada no termo de busca
-  if (termoBusca) {
+  // Passo 2: Ordenação inteligente avançada
+  if (termoBusca || regiaoSelecionada || estadualSelecionada) {
     filtradas.sort((a, b) => {
+      // Função auxiliar para verificar se a igreja é a Sede/Matriz da sua própria estadual
+      const verificarSeEhSede = (igreja) => {
+        const totvsStr = String(igreja.totvs || "").trim();
+        const estadualStr = String(igreja.estadual || "");
+
+        // Se o TOTVS dela estiver mencionado no nome da Estadual (ex: "(T 13753)"), ela é a Sede!
+        return estadualStr.includes(`(T ${totvsStr})`) || estadualStr.includes(`(T${totvsStr})`);
+      };
+
+      const ehSedeA = verificarSeEhSede(a);
+      const ehSedeB = verificarSeEhSede(b);
+
+      // Critério 1: Sede sempre vai para o topo absoluto
+      if (ehSedeA && !ehSedeB) return -1;
+      if (!ehSedeA && ehSedeB) return 1;
+
+      // Critério 2: Se nenhuma for sede ou se ambas forem, ordena em ordem alfabética pelo dirigente/congregação
       const nomeA = normalizar(a.dirigente || "");
       const nomeB = normalizar(b.dirigente || "");
-      const estadualA = normalizar(a.estadual || "");
-      const estadualB = normalizar(b.estadual || "");
-
-      // Critério 1: Verifica se o dirigente é uma Sede/Estadual ou se contém palavras-chave de Sede
-      const ehSedeA = nomeA.includes("sede") || nomeA.includes("estadual") || estadualA === termoBusca;
-      const ehSedeB = nomeB.includes("sede") || nomeB.includes("estadual") || estadualB === termoBusca;
-
-      if (ehSedeA && !ehSedeB) return -1; // Sede A sobe
-      if (!ehSedeA && ehSedeB) return 1;  // Sede B sobe
-
-      // Critério 2: Se nenhum ou ambos forem Sede, ordena em ordem alfabética pelo nome do dirigente/congregação
       return nomeA.localeCompare(nomeB);
     });
-  } else if (regiaoSelecionada || estadualSelecionada) {
-    // Se filtramos por selects de região, mantemos em ordem alfabética para facilitar a leitura visual
-    filtradas.sort((a, b) => normalizar(a.dirigente || "").localeCompare(normalizar(b.dirigente || "")));
+  } else {
+    // Se não há busca ou filtro ativo, mantém a ordem inversa cronológica padrão (Mais Recentes Primeiro)
+    // que definimos no carregamento inicial.
   }
 
   dadosFiltrados = filtradas;
