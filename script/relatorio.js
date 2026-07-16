@@ -1132,28 +1132,40 @@ async function listarIgrejas() {
       console.log("DIAGNÓSTICO PATRIMÔNIO - Resposta bruta do servidor:", textPatrimonio);
 
       const resPatrimonio = JSON.parse(textPatrimonio);
+
       if (resPatrimonio.sucesso && resPatrimonio.mensagem === "Backend online.") {
         isBackendOutdated = true;
         const alertaBackend = document.getElementById("alerta-atualizacao-backend");
         if (alertaBackend) alertaBackend.style.display = "block";
         console.warn("DIAGNÓSTICO - Google Apps Script desatualizado detectado!");
         todosPatrimonios = [];
+        todasIgrejasAtivasExternas = [];
       } else if (resPatrimonio.sucesso && resPatrimonio.dados) {
-        if (resPatrimonio.dados.patrimonios && resPatrimonio.dados.igrejasAtivas) {
-          todosPatrimonios = Array.isArray(resPatrimonio.dados.patrimonios) ? resPatrimonio.dados.patrimonios : [];
-          todasIgrejasAtivasExternas = Array.isArray(resPatrimonio.dados.igrejasAtivas) ? resPatrimonio.dados.igrejasAtivas : [];
+        // CORREÇÃO DE ACESSO AO OBJETO DE RESPOSTA DA API:
+        const payloadDados = resPatrimonio.dados;
+
+        if (payloadDados.patrimonios) {
+          todosPatrimonios = Array.isArray(payloadDados.patrimonios) ? payloadDados.patrimonios : [];
         } else {
-          todosPatrimonios = Array.isArray(resPatrimonio.dados) ? resPatrimonio.dados : (resPatrimonio.dados.dados || []);
+          todosPatrimonios = Array.isArray(payloadDados) ? payloadDados : [];
+        }
+
+        if (payloadDados.igrejasAtivas) {
+          todasIgrejasAtivasExternas = Array.isArray(payloadDados.igrejasAtivas) ? payloadDados.igrejasAtivas : [];
+        } else {
           todasIgrejasAtivasExternas = [];
         }
+
         console.log("DIAGNÓSTICO PATRIMÔNIO - Array processado com sucesso. Itens:", todosPatrimonios.length, "Igrejas Ativas Externas:", todasIgrejasAtivasExternas.length);
       } else {
         console.warn("DIAGNÓSTICO PATRIMÔNIO - Resposta sem sucesso ou dados ausentes:", resPatrimonio.mensagem);
         todosPatrimonios = [];
+        todasIgrejasAtivasExternas = [];
       }
     } catch (errPatrimonio) {
       console.error("DIAGNÓSTICO PATRIMÔNIO - Falha catastrófica ao buscar ativos:", errPatrimonio);
       todosPatrimonios = [];
+      todasIgrejasAtivasExternas = [];
     }
 
     // Popula o filtro de regiões e de estaduais e renderiza a tabela
