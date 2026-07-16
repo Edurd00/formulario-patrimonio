@@ -1004,13 +1004,49 @@ function rolarParaTabela() {
   }
 }
 
+// A. Função de trava visual de componentes (RBAC)
+function verificarControleAcessoRBAC() {
+  const perfil = sessionStorage.getItem("usuarioPerfil") || "Admin";
+  const regiaoDesignada = sessionStorage.getItem("usuarioRegiao") || "Todas";
+  const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+
+  if (perfil === "Supervisor" && regiaoDesignada && regiaoDesignada !== "Todas") {
+    console.log(`[RBAC] Trava ativada para o campo: ${regiaoDesignada}`);
+
+    if (selectRegiao) {
+      selectRegiao.value = regiaoDesignada; // Força a região na tela
+      selectRegiao.disabled = true;        // Bloqueia o campo visualmente
+
+      if (typeof atualizarFiltroEstaduais === "function") {
+        atualizarFiltroEstaduais();
+      }
+    }
+    // Oculta o botão de limpar filtros para supervisores para evitar que limpe a própria trava
+    const btnLimpar = document.getElementById("btn-limpar-filtros");
+    if (btnLimpar) btnLimpar.style.display = "none";
+
+    // Força a aplicação imediata do filtro regional
+    if (typeof aplicarFiltros === "function") {
+      aplicarFiltros();
+    }
+  }
+}
+
 function aplicarFiltros() {
   const inputFiltro = document.getElementById("filtro-igrejas");
   const selectRegiao = document.getElementById("filtro-regiao-igrejas");
   const selectEstadual = document.getElementById("filtro-estadual-igrejas");
 
+  // B. Blindagem invisível no motor de filtros (aplicarFiltros)
+  const perfil = sessionStorage.getItem("usuarioPerfil") || "Admin";
+  const regiaoDesignada = sessionStorage.getItem("usuarioRegiao") || "Todas";
+  let regiaoSelecionada = normalizar(selectRegiao ? selectRegiao.value : "");
+
+  if (perfil === "Supervisor" && regiaoDesignada && regiaoDesignada !== "Todas") {
+    regiaoSelecionada = normalizar(regiaoDesignada);
+  }
+
   const termoBusca = normalizar(inputFiltro ? inputFiltro.value : "");
-  const regiaoSelecionada = normalizar(selectRegiao ? selectRegiao.value : "");
   const estadualSelecionada = normalizar(selectEstadual ? selectEstadual.value : "");
 
   paginaAtual = 1; // Reseta para a página 1 ao filtrar
@@ -1174,6 +1210,7 @@ async function listarIgrejas() {
     // Popula o filtro de regiões e de estaduais e renderiza a tabela
     popularFiltroRegioes();
     atualizarFiltroEstaduais();
+    verificarControleAcessoRBAC();
     renderizarTabela(dadosFiltrados);
 
     // Ativa os listeners dos filtros
@@ -1380,6 +1417,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Carrega lista de igrejas
   listarIgrejas();
+  verificarControleAcessoRBAC();
 });
 
 /** Controla o efeito de abrir/fechar o Accordion (Sanfona) e girar a seta */
