@@ -1,7 +1,7 @@
 /* =========================================
    GOOGLE APPS SCRIPT URL
 ========================================= */
-const URL = "https://script.google.com/macros/s/AKfycbxDiuhIuL6hnfNZL68Yl8YD528YuXg7scNc9ATJpgDo7cV6kRC90rc4SzpCLe_BkhfHRQ/exec";
+const URL = "https://script.google.com/macros/s/AKfycbyA_GPEXPKow6kQF25MoB9etleYbOGF17dRdbSSHXi634LzB_rsT9KGeumrhBGWkWQRTA/exec";
 
 /* =========================================
    INSTÂNCIAS GLOBAIS DE GRÁFICOS (CHART.JS)
@@ -1411,28 +1411,28 @@ function atualizarListaPendencias() {
     });
   }
 
-  // LOG DE DIAGNÓSTICO NO CONSOLE (Aperte F12 para ver se as listas estão chegando)
-  console.log("CRUZAMENTO - Total Ativas:", todasIgrejasAtivasExternas.length, "Total Já Enviaram:", totvsComPatrimonio.size);
+  // 2. Extrai termos de busca simples da Estadual selecionada para evitar quebras por caracteres especiais
+  const termoCidadeFiltro = estadualSel.split(" ")[0].split("-").pop().replace(/[^a-z0-9]/g, "");
 
-  // 2. Filtra as igrejas da reclassificação usando SUBTRAÇÃO POR TOTVS PURA
+  // 3. Filtra as igrejas da reclassificação usando SUBTRAÇÃO POR TOTVS PURA
   const pendentes = todasIgrejasAtivasExternas.filter(igreja => {
     if (!igreja) return false;
 
-    // Queremos apenas as igrejas do tipo Local que ainda não enviaram nada
+    // Queremos apenas as igrejas locais pendentes
     if (igreja.tipo !== "Local") return false;
 
-    // Normaliza os dados da igreja vindos do backend externo
-    const regiaoIgreja = normalizar(igreja.regiao).replace(/[^a-z0-9]/g, "");
-    const regiaoFiltro = regiaoSel.replace(/[^a-z0-9]/g, "");
-    const estadualIgreja = normalizar(igreja.estadual);
+    // Normaliza os dados vindos do backend
+    const regiaoIgrejaLimpa = normalizar(igreja.regiao).replace(/[^a-z0-9]/g, "");
+    const regiaoFiltroLimpa = regiaoSel.replace(/[^a-z0-9]/g, "");
+    const estadualIgrejaLimpa = normalizar(igreja.estadual).replace(/[^a-z0-9]/g, "");
 
     // Validação 1: Pertence à Região Geográfica selecionada?
-    if (regiaoIgreja !== regiaoFiltro) return false;
+    if (regiaoIgrejaLimpa !== regiaoFiltroLimpa) return false;
 
-    // Validação 2: Pertence à Estadual selecionada? (Busca flexível por trecho do texto)
-    // Exemplo: Se na tela está "Maceio (T 4760)" e o filtro vira "maceio", ele busca se a propriedade estadual da igreja contém "maceio"
-    const termoCidadeFiltro = estadualSel.split(" ")[0].split("-").pop();
-    const correspondeEstadual = estadualIgreja.includes(termoCidadeFiltro) || estadualSel.includes(estadualIgreja);
+    // Validação 2: Pertence à Estadual selecionada? (Busca flexível e tolerante)
+    const correspondeEstadual = estadualIgrejaLimpa.includes(termoCidadeFiltro) ||
+                                estadualSel.includes(estadualIgrejaLimpa) ||
+                                normalizar(igreja.liderSuperior).includes(termoCidadeFiltro);
 
     if (!correspondeEstadual) return false;
 
@@ -1447,7 +1447,7 @@ function atualizarListaPendencias() {
     return;
   }
 
-  // 3. Agrupa as pendentes por campo de liderança para organizar a tabela
+  // Agrupa as pendentes por campo de liderança para organizar a tabela
   const agrupadoPorLider = {};
   pendentes.forEach(i => {
     const lider = i.liderSuperior || "Estadual Responsável";
@@ -1455,7 +1455,7 @@ function atualizarListaPendencias() {
     agrupadoPorLider[lider].push(i);
   });
 
-  // 4. Renderiza a lista na tela
+  // Renderiza a lista na tela
   let htmlRows = "";
   Object.keys(agrupadoPorLider).forEach(lider => {
     const igrejasLideradas = agrupadoPorLider[lider];
