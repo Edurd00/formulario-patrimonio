@@ -1395,24 +1395,47 @@ function atualizarListaPendencias() {
   if (!tbody) return;
 
   const regiaoSel = normalizar(document.getElementById("filtro-regiao-igrejas").value || "");
-  const estadualSel = normalizar(document.getElementById("filtro-estadual-igrejas").value || "");
+  const estadualRaw = document.getElementById("filtro-estadual-igrejas").value || "";
+  const estadualSel = normalizar(estadualRaw);
 
-  if (!estadualSel) {
+  if (!estadualRaw) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 30px;">🔍 Por favor, selecione uma Estadual para ver as pendências.</td></tr>`;
     return;
+  }
+
+  // Extrai o número do TOTVS de dentro da string do filtro (Ex: "Maceio (T 4760)" -> "4760")
+  let totvsFiltroEstadual = "";
+  const matchTotvs = estadualRaw.match(/\(T\s*(\d+)\)/i);
+  if (matchTotvs && matchTotvs[1]) {
+    totvsFiltroEstadual = String(matchTotvs[1]).trim();
   }
 
   // Set de TOTVS de quem já enviou
   const totvsComPatrimonio = new Set();
   todosPatrimonios.forEach(p => { if (p && p.totvs) totvsComPatrimonio.add(String(p.totvs).trim()); });
 
-  // Filtra locais pendentes da região selecionada e estadual selecionada
+  // Filtra locais pendentes da região selecionada e que pertencem à linhagem dessa estadual
   const pendentes = todasIgrejasAtivasExternas.filter(igreja => {
     if (!igreja || igreja.tipo !== "Local") return false;
+
+    // 1. Verifica correspondência de região geográfica (Aba)
     const correspondeRegiao = normalizar(igreja.regiao) === regiaoSel;
-    const correspondeEstadual = normalizar(igreja.estadual) === estadualSel;
+    if (!correspondeRegiao) return false;
+
+    // 2. Se conseguimos extrair o TOTVS da Sede do filtro, validamos de forma exata pela propriedade herdada
+    let pertenceAEstaEstadual = false;
+    if (totvsFiltroEstadual) {
+      // Verifica se a igreja local responde para a estadual que tem esse código TOTVS como cabeça de chave
+      pertenceAEstaEstadual = String(igreja.liderSuperior).includes(totvsFiltroEstadual) ||
+                              normalizar(igreja.liderSuperior).includes(estadualSel.split(" ")[0]);
+    } else {
+      // Fallback genérico por texto aproximado caso falte o padrão (TXXXX)
+      pertenceAEstaEstadual = normalizar(igreja.liderSuperior).includes(estadualSel.split(" ")[0]);
+    }
+
     const naoEnviou = !totvsComPatrimonio.has(String(igreja.totvs).trim());
-    return correspondeRegiao && correspondeEstadual && naoEnviou;
+
+    return pertenceAEstaEstadual && naoEnviou;
   });
 
   if (pendentes.length === 0) {
@@ -1460,7 +1483,7 @@ function atualizarListaPendencias() {
           <td>${i.nome}</td>
           <td><span style="font-size:10px; background:#ddd; padding:2px 5px; border-radius:3px;">LOCAL</span></td>
           <td>Responsável: ${lider}</td>
-          <td style="color: red; text-align: center;">Pendente</td>
+          <td style="color: red; text-align: center; font-weight: 500;">Pendente</td>
         </tr>
       `;
     });
