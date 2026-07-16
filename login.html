@@ -98,8 +98,26 @@
         // CONFIGURAÇÃO DO USUÁRIO E SENHA DE ACESSO
         // ==========================================
         const CREDENCIAIS_ACESSO = {
-            usuario: "gestaodedados@ipda.com",  // Usuário configurado
-            senha: "@admgd2026"       // Senha configurada
+            "gestaodedados@ipda.com.br": "@admgd2026",
+            "admin": "@admgd2026",
+            "supervisor.mg": "@admgd2026",
+            "supervisor.nd": "@admgd2026",
+            "supervisor.nt": "@admgd2026",
+            "supervisor.rj": "@admgd2026",
+            "supervisor.mg": "@admgd2026",
+            "supervisor.co": "@admgd2026"
+        };
+
+        // Objeto de mapeamento RBAC para controle de acesso por perfil e regiões (multi-regiões)
+        const USUARIOS_RBAC = {
+            "gestaodedados@ipda.com": { perfil: "Admin", regioes: ["Todas"] },
+            "admin": { perfil: "Admin", regioes: ["Todas"] },
+            "supervisor.mg": { perfil: "Supervisor", regioes: ["Minas Gerais"] },
+            "supervisor.nd": { perfil: "Supervisor", regioes: ["Nordeste"] },
+            "supervisor.nt": { perfil: "Supervisor", regioes: ["Norte"] },
+            "supervisor.rj": { perfil: "Supervisor", regioes: ["Rio de Janeiro","Centro-Oeste", "Espirito Santo"] },
+            "supervisor.sul": { perfil: "Supervisor", regioes: ["Regiao Sul"] },
+            "supervisor.sp": { perfil: "Supervisor", regioes: ["Grande Sao Paulo - SP", "Interior - SP","Litoral - SP"] }
         };
 
         const form = document.getElementById("login-form");
@@ -116,12 +134,16 @@
             e.preventDefault();
             erroContainer.style.display = "none";
 
-            const usernameVal = usernameInput.value.trim();
+            const usernameVal = usernameInput.value.trim().toLowerCase();
             const passwordVal = passwordInput.value;
 
-            // Validação das credenciais configuráveis
-            if (usernameVal === CREDENCIAIS_ACESSO.usuario && passwordVal === CREDENCIAIS_ACESSO.senha) {
+            // Validação das credenciais configuráveis via RBAC
+            if (CREDENCIAIS_ACESSO[usernameVal] && passwordVal === CREDENCIAIS_ACESSO[usernameVal]) {
                 sessionStorage.setItem("usuarioLogado", "true");
+
+                const rbac = USUARIOS_RBAC[usernameVal] || { perfil: "Admin", regioes: ["Todas"] };
+                sessionStorage.setItem("usuarioPerfil", rbac.perfil);
+                sessionStorage.setItem("usuarioRegioes", JSON.stringify(rbac.regioes));
 
                 // Redireciona para os relatórios
                 window.location.href = "relatorios.html";

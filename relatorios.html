@@ -309,6 +309,37 @@
                 size: A4 portrait;
                 margin: 15mm 15mm 15mm 15mm;
             }
+
+            /* 1. Permite que o container principal seja dividido fluidamente entre as páginas */
+            .container,
+            .container-relatorio,
+            .card,
+            #painel-detalhes-igreja {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+                display: block !important; /* Força block para que as quebras de página funcionem corretamente */
+            }
+
+            /* 2. Permite que as tabelas de dados quebrem de forma fluida no meio das linhas */
+            table,
+            .tabela-dinamica {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+
+            /* 3. Evita que uma linha de tabela (tr) seja cortada de forma bizarra no meio do texto, mas permite quebrar entre uma linha e outra */
+            tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
+            /* 4. Garante que elementos de texto ou cabeçalhos de bloco não fiquem isolados sozinhos no final de uma página */
+            h2, h3, th {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
         }
 
         .print-header { display: none; }
@@ -563,9 +594,12 @@
                     <span class="badge-contagem" id="contagem-igrejas">0 igrejas</span>
                 </div>
 
-                <div style="display: flex; justify-content: flex-start; margin-top: 4px; width: 100%;">
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; width: 100%;">
                     <button type="button" id="btn-exportar-csv" style="background-color: #107c41; width: auto; padding: 10px 20px; font-size: 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px;">
                         📥 Exportar para Excel (.csv)
+                    </button>
+                    <button type="button" id="btn-limpar-filtros" style="background-color: #64748b; width: auto; padding: 10px 20px; font-size: 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px;">
+                        🧹 Limpar Filtros
                     </button>
                 </div>
             </div>

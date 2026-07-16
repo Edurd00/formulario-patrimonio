@@ -655,15 +655,12 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     </tr>
   `;
 
-  // --- INÍCIO DA CORREÇÃO CONTRA DUPLICIDADE ---
   const agregados = {};
 
-  // 1. Inicializa todas as regiões cadastradas em REGIOES no formato CAIXA ALTA padronizado
+  // Se não há filtro de região ativo, pré-inicializa o objeto com as Regiões Macros em caixa alta para acumular os patrimônios de forma consolidada
   if (!regiaoFiltro) {
     Object.keys(REGIOES).forEach(reg => {
-      // Normaliza para remover acentos e converte para CAIXA ALTA (padrão do banco)
       const regPadronizada = normalizar(reg).toUpperCase();
-
       agregados[regPadronizada] = {
         "Mobiliário e Estrutura": 0,
         "Eletrônicos e Climatização": 0,
@@ -675,18 +672,16 @@ function atualizarGestaoPatrimonio(dadosFiltrados) {
     });
   }
 
-  // 2. Processa os patrimônios acumulando os valores exatamente nas chaves padronizadas
+  // Varre os patrimônios acumulando na chave correta (Por Igreja individual se houver filtro, ou por Região Macro se estiver limpo)
   patrimoniosFiltrados.forEach(p => {
     const igreja = totvsFiltradosMap[p.totvs];
     if (!igreja) return;
 
-    // Se houver filtro de região, exibe o detalhe da igreja. Caso contrário, exibe a região unificada em CAIXA ALTA
     const rowKey = regiaoFiltro
       ? `${igreja.totvs} - ${igreja.dirigente || 'Igreja'}`
       : normalizar(igreja.regiao || "Outros").toUpperCase();
 
     const qtd = parseInt(p.quantidade || p.Quantidade, 10) || 0;
-
     const nomeNormalizado = normalizar(p.patrimonio || p.Patrimonio);
     let cat = MAPA_CATEGORIAS[nomeNormalizado] || "Itens adicionais";
 
@@ -1002,66 +997,164 @@ function rolarParaTabela() {
   }
 }
 
+// A. Função de trava visual de componentes (RBAC)
+function verificarControleAcessoRBAC() {
+  const perfil = sessionStorage.getItem("usuarioPerfil") || "Admin";
+
+  // Lê o array de regiões armazenado (ou assume 'Todas' como padrão)
+  let regioesDesignadas = [];
+  try {
+    regioesDesignadas = JSON.parse(sessionStorage.getItem("usuarioRegioes") || "[]");
+  } catch(e) {
+    regioesDesignadas = ["Todas"];
+  }
+
+  const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+  if (!selectRegiao) return;
+
+  // Se for supervisor e não tiver acesso a 'Todas', limpamos as opções do menu que não pertencem a ele
+  if (perfil === "Supervisor" && !regioesDesignadas.includes("Todas")) {
+    console.log("[RBAC] Supervisor multi-região detectado. Filtrando permissões visíveis...");
+
+    // Captura as opções atuais do select de regiões
+    const opcoes = Array.from(selectRegiao.options);
+
+    // Reseta o select mantendo apenas a opção padrão
+    selectRegiao.innerHTML = '';
+
+    opcoes.forEach(opt => {
+      // Se for a opção vazia "Todas as Regiões" ou se o supervisor tiver autorização para a região, adiciona de volta
+      if (opt.value === "" || regioesDesignadas.includes(opt.value)) {
+        selectRegiao.appendChild(opt);
+      }
+    });
+
+    // Força o select a se posicionar na primeira região válida dele se estiver vazio
+    if (selectRegiao.value === "" && regioesDesignadas.length > 0) {
+      selectRegiao.value = regioesDesignadas[0];
+      if (typeof atualizarFiltroEstaduais === "function") atualizarFiltroEstaduais();
+    }
+
+    // Força a aplicação imediata do filtro regional
+    if (typeof aplicarFiltros === "function") {
+      aplicarFiltros();
+    }
+  }
+}
+
 function aplicarFiltros() {
-  const termoBusca = normalizar(
-    (document.getElementById("filtro-igrejas") || {}).value || ""
-  );
-  const regiaoSelecionada = normalizar(
-    (document.getElementById("filtro-regiao-igrejas") || {}).value || ""
-  );
-  const estadualSelecionada = normalizar(
-    (document.getElementById("filtro-estadual-igrejas") || {}).value || ""
-  );
+  const inputFiltro = document.getElementById("filtro-igrejas");
+  const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+  const selectEstadual = document.getElementById("filtro-estadual-igrejas");
+
+  // B. Blindagem invisível no motor de filtros (aplicarFiltros)
+  const perfil = sessionStorage.getItem("usuarioPerfil") || "Admin";
+  let regioesDesignadas = [];
+  try { regioesDesignadas = JSON.parse(sessionStorage.getItem("usuarioRegioes") || "[]"); } catch(e) { regioesDesignadas = ["Todas"]; }
+
+  let regiaoSelecionada = normalizar(selectRegiao ? selectRegiao.value : "");
+
+  // Se for supervisor e tentar forçar uma região não autorizada via console do navegador (F12)
+  if (perfil === "Supervisor" && !regioesDesignadas.includes("Todas") && regiaoSelecionada !== "") {
+    const regioesNormalizadas = regioesDesignadas.map(r => normalizar(r));
+
+    // Se a região que ele escolheu NÃO está na lista permitida dele, barra a execução forçando a primeira válida
+    if (!regioesNormalizadas.includes(regiaoSelecionada)) {
+      regiaoSelecionada = normalizar(regioesDesignadas[0]);
+      if (selectRegiao) selectRegiao.value = regioesDesignadas[0];
+    }
+  }
+
+  const termoBusca = normalizar(inputFiltro ? inputFiltro.value : "");
+  const estadualSelecionada = normalizar(selectEstadual ? selectEstadual.value : "");
 
   paginaAtual = 1; // Reseta para a página 1 ao filtrar
 
-  // Passo 1: Filtrar os dados brutos
+  // Quebra a busca por termos individuais para tornar a pesquisa por barra muito mais precisa
+  const termosIndividuais = termoBusca.split(/\s+/).filter(t => t.length > 0);
+
+  // Passo 1: Filtrar os dados brutos da lista principal de igrejas
   let filtradas = todasIgrejas.filter(igreja => {
     if (!igreja) return false;
 
-    const matchBusca = !termoBusca || [
-      igreja.totvs, igreja.regiao, igreja.estadual, igreja.dirigente, igreja.endereco
-    ].some(campo => campo && normalizar(campo).includes(termoBusca));
+    // Busca precisa: o registro precisa conter TODOS os termos digitados na barra (em qualquer ordem)
+    const matchBusca = termosIndividuais.length === 0 || termosIndividuais.every(termo => {
+      return [igreja.totvs, igreja.regiao, igreja.estadual, igreja.dirigente, igreja.endereco]
+        .some(campo => campo && normalizar(campo).includes(termo));
+    });
 
-    const matchRegiao = !regiaoSelecionada || normalizar(igreja.regiao) === regiaoSelecionada;
+    let matchRegiao = false;
+    if (regiaoSelecionada) {
+      matchRegiao = normalizar(igreja.regiao) === regiaoSelecionada;
+    } else {
+      if (perfil === "Supervisor" && !regioesDesignadas.includes("Todas")) {
+        const regioesNormalizadas = regioesDesignadas.map(r => normalizar(r));
+        matchRegiao = regioesNormalizadas.includes(normalizar(igreja.regiao || ""));
+      } else {
+        matchRegiao = true;
+      }
+    }
 
     const matchEstadual = !estadualSelecionada || normalizar(igreja.estadual) === estadualSelecionada;
 
     return matchBusca && matchRegiao && matchEstadual;
   });
 
-  // Passo 2: Ordenação inteligente avançada
+  // Passo 2: Ordenação inteligente avançada (Sede sempre no topo)
   if (termoBusca || regiaoSelecionada || estadualSelecionada) {
     filtradas.sort((a, b) => {
-      // Função auxiliar para verificar se a igreja é a Sede/Matriz da sua própria estadual
       const verificarSeEhSede = (igreja) => {
         const totvsStr = String(igreja.totvs || "").trim();
         const estadualStr = String(igreja.estadual || "");
-
-        // Se o TOTVS dela estiver mencionado no nome da Estadual (ex: "(T 13753)"), ela é a Sede!
         return estadualStr.includes(`(T ${totvsStr})`) || estadualStr.includes(`(T${totvsStr})`);
       };
-
       const ehSedeA = verificarSeEhSede(a);
       const ehSedeB = verificarSeEhSede(b);
-
-      // Critério 1: Sede sempre vai para o topo absoluto
       if (ehSedeA && !ehSedeB) return -1;
       if (!ehSedeA && ehSedeB) return 1;
-
-      // Critério 2: Se nenhuma for sede ou se ambas forem, ordena em ordem alfabética pelo dirigente/congregação
-      const nomeA = normalizar(a.dirigente || "");
-      const nomeB = normalizar(b.dirigente || "");
-      return nomeA.localeCompare(nomeB);
+      return normalizar(a.dirigente || "").localeCompare(normalizar(b.dirigente || ""));
     });
-  } else {
-    // Se não há busca ou filtro ativo, mantém a ordem inversa cronológica padrão (Mais Recentes Primeiro)
-    // que definimos no carregamento inicial.
   }
 
   dadosFiltrados = filtradas;
   igrejasFiltradas = filtradas;
-  renderizarTabela(dadosFiltrados);
+
+  // --- SINCRONIZAÇÃO DAS DUAS ABAS ---
+  renderizarTabela(dadosFiltrados);          // Atualiza a Aba 1 (Lista)
+  atualizarGestaoPatrimonio(dadosFiltrados); // 🌟 CORREÇÃO: Atualiza AGORA a Aba 2 (Patrimônio e Gráficos) com o mesmo filtro!
+
+  // Se a aba de pendências estiver ativa ou implementada, atualiza também
+  if (typeof atualizarListaPendencias === "function") {
+    atualizarListaPendencias();
+  }
+}
+
+function limparTodosOsFiltros() {
+  const perfil = sessionStorage.getItem("usuarioPerfil") || "Admin";
+  let regioesDesignadas = [];
+  try { regioesDesignadas = JSON.parse(sessionStorage.getItem("usuarioRegioes") || "[]"); } catch(e) { regioesDesignadas = ["Todas"]; }
+
+  const inputBusca = document.getElementById("filtro-igrejas");
+  const selectRegiao = document.getElementById("filtro-regiao-igrejas");
+  const selectEstadual = document.getElementById("filtro-estadual-igrejas");
+  const checkboxCritico = document.getElementById("filtro-estado-critico");
+
+  if (inputBusca) inputBusca.value = "";
+  if (selectEstadual) selectEstadual.innerHTML = '<option value="">Todas as Estaduais</option>';
+  if (checkboxCritico) checkboxCritico.checked = false;
+
+  // Se for supervisor, limpa tudo MAS mantém a região dele selecionada
+  if (perfil === "Supervisor" && !regioesDesignadas.includes("Todas")) {
+    if (selectRegiao && regioesDesignadas.length > 0) {
+      selectRegiao.value = regioesDesignadas[0]; // Volta para a primeira região permitida dele
+    }
+  } else {
+    // Se for administrador global, limpa a região também
+    if (selectRegiao) selectRegiao.value = "";
+  }
+
+  // Roda o motor de filtros para atualizar a tela com a limpeza aplicada
+  aplicarFiltros();
 }
 
 /** Carrega as igrejas da API e inicializa os filtros */
@@ -1151,6 +1244,7 @@ async function listarIgrejas() {
     // Popula o filtro de regiões e de estaduais e renderiza a tabela
     popularFiltroRegioes();
     atualizarFiltroEstaduais();
+    verificarControleAcessoRBAC();
     renderizarTabela(dadosFiltrados);
 
     // Ativa os listeners dos filtros
@@ -1349,8 +1443,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Vincular o botão de limpar filtros caso exista no HTML
+  const btnLimpar = document.getElementById("btn-limpar-filtros");
+  if (btnLimpar) {
+    btnLimpar.addEventListener("click", limparTodosOsFiltros);
+  }
+
   // Carrega lista de igrejas
   listarIgrejas();
+  verificarControleAcessoRBAC();
 });
 
 /** Controla o efeito de abrir/fechar o Accordion (Sanfona) e girar a seta */

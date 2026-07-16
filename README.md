@@ -245,3 +245,27 @@ Após o deploy, valide o sistema na seguinte ordem:
 - Os filtros de busca normalizam acentos automaticamente (ex.: buscar `Sao Paulo` encontra `São Paulo`)
 - O painel administrativo carrega os dados em **modo somente leitura** — alterações devem ser feitas diretamente na planilha ou via re-cadastro
 - O backend usa `LockService` para evitar condições de corrida em cadastros simultâneos
+
+---
+
+## 🚀 FUNCIONALIDADES IMPLANTADAS ATUALMENTE
+
+Abaixo estão as ferramentas que já estão rodando 100% na nossa branch principal:
+
+- **Painel Administrativo de Monitoramento:** Dashboard executivo integrado para auditoria de patrimônios em tempo real.
+- **Gráficos Dinâmicos (Chart.js):** Gráficos interativos de distribuição de ativos por categoria (Mobiliário, Eletrônicos, Som, etc.) e análise visual do Estado de Conservação dos equipamentos.
+- **Filtro de Auditoria de Compras:** Chave seletora que isola instantaneamente na tabela apenas os itens em estado "Ruim" que precisam de substituição ou manutenção.
+- **Busca Dinâmica Avançada e Paginação:** Barra de pesquisa inteligente por TOTVS, dirigente ou endereço, com paginação de alto desempenho (50 itens por página) para suportar bases grandes.
+- **Ordenação Inteligente de Liderança:** Algoritmo que identifica a Sede/Matriz de cada regional e a joga automaticamente para o topo absoluto da tabela, organizando o campo de forma hierárquica.
+- **Exportação Executiva (.CSV):** Botão de extração nativa de dados formatado com UTF-8 BOM para abertura perfeita no Microsoft Excel.
+- **Modo de Impressão Otimizado (CSS Print):** Estilização dedicada que oculta menus e barras de busca no momento da impressão, gerando relatórios em PDF limpos, profissionais e timbrados com a identidade da IPDA.
+
+---
+
+## 🗺️ ROADMAP (MELHORIAS FUTURAS)
+
+Próximos passos e ideias de evolução que decidimos planejar para os próximos ciclos de desenvolvimento:
+
+- **⚠️ Sistema de Alertas e Cobranças por Estadual (Pausado para ajustes na base):** Estruturação do cruzamento por subtração de TOTVS com a planilha externa de reclassificação de 12 mil igrejas, integrando o botão de cobrança direta via API do WhatsApp para os supervisores de campo.
+- **🎨 Filtros de Acesso Baseados em Perfil (RBAC):** Modificação no sistema de login e APIs para que supervisores regionais tenham acesso síncrono isolado, enxergando apenas os dados de suas respectivas Estaduais ou Regiões.
+- **📱 Transformação em PWA (Progressive Web App):** Conversão da aplicação para que o painel e os formulários possam ser instalados e abertos diretamente na tela inicial dos celulares dos pastores como um aplicativo nativo.
