@@ -1,7 +1,7 @@
 /* =========================================
    GOOGLE APPS SCRIPT URL
 ========================================= */
-const URL = "https://script.google.com/macros/s/AKfycbxDiuhIuL6hnfNZL68Yl8YD528YuXg7scNc9ATJpgDo7cV6kRC90rc4SzpCLe_BkhfHRQ/exec";
+const URL = "https://script.google.com/macros/s/AKfycbyA_GPEXPKow6kQF25MoB9etleYbOGF17dRdbSSHXi634LzB_rsT9KGeumrhBGWkWQRTA/exec";
 
 /* =========================================
    INSTÂNCIAS GLOBAIS DE GRÁFICOS (CHART.JS)
@@ -1418,18 +1418,18 @@ function atualizarListaPendencias() {
   const pendentes = todasIgrejasAtivasExternas.filter(igreja => {
     if (!igreja || igreja.tipo !== "Local") return false;
 
-    // 1. Verifica correspondência de região geográfica (Aba)
-    const correspondeRegiao = normalizar(igreja.regiao) === regiaoSel;
-    if (!correspondeRegiao) return false;
+    // 1. Verifica correspondência flexível de região (remove hífens e espaços extras)
+    const regiaoIgrejaLimpa = normalizar(igreja.regiao).replace(/[^a-z0-9]/g, "");
+    const regiaoFiltroLimpa = regiaoSel.replace(/[^a-z0-9]/g, "");
 
-    // 2. Se conseguimos extrair o TOTVS da Sede do filtro, validamos de forma exata pela propriedade herdada
+    if (regiaoIgrejaLimpa !== regiaoFiltroLimpa) return false;
+
+    // 2. Validação pela propriedade herdada da Sede
     let pertenceAEstaEstadual = false;
     if (totvsFiltroEstadual) {
-      // Verifica se a igreja local responde para a estadual que tem esse código TOTVS como cabeça de chave
       pertenceAEstaEstadual = String(igreja.liderSuperior).includes(totvsFiltroEstadual) ||
                               normalizar(igreja.liderSuperior).includes(estadualSel.split(" ")[0]);
     } else {
-      // Fallback genérico por texto aproximado caso falte o padrão (TXXXX)
       pertenceAEstaEstadual = normalizar(igreja.liderSuperior).includes(estadualSel.split(" ")[0]);
     }
 

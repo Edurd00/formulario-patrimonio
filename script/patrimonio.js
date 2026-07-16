@@ -1,4 +1,4 @@
-const URL = "https://script.google.com/macros/s/AKfycbxDiuhIuL6hnfNZL68Yl8YD528YuXg7scNc9ATJpgDo7cV6kRC90rc4SzpCLe_BkhfHRQ/exec";
+const URL = "https://script.google.com/macros/s/AKfycbyA_GPEXPKow6kQF25MoB9etleYbOGF17dRdbSSHXi634LzB_rsT9KGeumrhBGWkWQRTA/exec";
 
 const msgStatus = document.getElementById("mensagem-status");
 const botaoSubmit = document.getElementById("btn-enviar");
